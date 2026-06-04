@@ -1,0 +1,2 @@
+[console_scripts]
+cogni-agent = cogni_agent.__main__:main

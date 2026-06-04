@@ -1,0 +1,704 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>CogniAgent Lab</title>
+<style>
+  :root {
+    --bg: #0f1117;
+    --surface: #1a1d27;
+    --surface-2: #232738;
+    --border: #2a2d3a;
+    --text: #e1e4ed;
+    --text-dim: #8b8fa3;
+    --accent: #6c5ce7;
+    --accent-hover: #7c6cf7;
+    --success: #00b894;
+    --warning: #fdcb6e;
+    --error: #ff6b6b;
+    --radius: 8px;
+    --font: 'SF Mono', 'Fira Code', 'Cascadia Code', monospace;
+    --font-ui: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+  }
+  * { margin: 0; padding: 0; box-sizing: border-box; }
+  body {
+    font-family: var(--font-ui);
+    background: var(--bg);
+    color: var(--text);
+    height: 100vh;
+    display: flex;
+    overflow: hidden;
+  }
+
+  /* ─── Sidebar Tabs ─── */
+  .sidebar {
+    width: 320px;
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    overflow: hidden;
+  }
+  .sidebar-header {
+    padding: 16px;
+    border-bottom: 1px solid var(--border);
+  }
+  .sidebar-header h1 {
+    font-family: var(--font);
+    font-size: 16px;
+    font-weight: 700;
+    color: var(--accent);
+  }
+  .sidebar-header h1 span { color: var(--text-dim); font-weight: 400; }
+  .sidebar-header p { font-size: 11px; color: var(--text-dim); margin-top: 4px; }
+
+  .tabs {
+    display: flex;
+    border-bottom: 1px solid var(--border);
+    flex-shrink: 0;
+  }
+  .tab {
+    flex: 1;
+    padding: 10px 8px;
+    text-align: center;
+    font-size: 11px;
+    font-weight: 600;
+    cursor: pointer;
+    border-bottom: 2px solid transparent;
+    color: var(--text-dim);
+    transition: all 0.15s;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { color: var(--accent); border-bottom-color: var(--accent); }
+
+  .tab-content { flex: 1; overflow-y: auto; padding: 12px; display: none; }
+  .tab-content.active { display: block; }
+
+  .panel-section { margin-bottom: 16px; }
+  .panel-section h3 {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: var(--text-dim);
+    margin-bottom: 8px;
+    font-family: var(--font);
+  }
+
+  .cap-bar {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .cap-bar .name { width: 100px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .cap-bar .bar-bg {
+    flex: 1;
+    height: 6px;
+    background: var(--surface-2);
+    border-radius: 3px;
+    overflow: hidden;
+  }
+  .cap-bar .bar-fill {
+    height: 100%;
+    border-radius: 3px;
+    transition: width 0.5s ease;
+    background: var(--accent);
+  }
+  .cap-bar .pct { width: 36px; text-align: right; color: var(--text-dim); font-family: var(--font); font-size: 11px; }
+
+  .evo-item {
+    padding: 8px;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    font-size: 12px;
+    line-height: 1.5;
+  }
+  .evo-item .type {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    font-weight: 600;
+    margin-bottom: 2px;
+    font-family: var(--font);
+  }
+  .type-insight { background: rgba(0,184,148,0.2); color: var(--success); }
+  .type-self_correction { background: rgba(255,107,107,0.2); color: var(--error); }
+  .type-capability_learned { background: rgba(108,92,231,0.2); color: var(--accent); }
+  .type-personality_shift { background: rgba(253,203,110,0.2); color: var(--warning); }
+  .type-default { background: rgba(139,143,163,0.2); color: var(--text-dim); }
+
+  .mem-item {
+    padding: 8px;
+    background: var(--surface-2);
+    border-radius: var(--radius);
+    margin-bottom: 6px;
+    font-size: 12px;
+  }
+  .mem-item .importance { font-family: var(--font); color: var(--accent); font-size: 10px; }
+
+  .profile-row {
+    display: flex;
+    justify-content: space-between;
+    padding: 6px 0;
+    border-bottom: 1px solid var(--border);
+    font-size: 13px;
+  }
+  .profile-row .label { color: var(--text-dim); }
+  .profile-row .value { font-weight: 500; }
+
+  /* ─── Main Area ─── */
+  .main {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    min-width: 0;
+  }
+
+  .chat-header {
+    padding: 12px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    flex-shrink: 0;
+  }
+  .chat-header .title { font-size: 14px; font-weight: 600; }
+
+  .messages {
+    flex: 1;
+    overflow-y: auto;
+    padding: 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+  }
+
+  .msg { display: flex; flex-direction: column; gap: 4px; }
+  .msg.user { align-items: flex-end; }
+  .msg.agent { align-items: flex-start; }
+
+  .msg .bubble {
+    max-width: 80%;
+    padding: 12px 16px;
+    border-radius: 12px;
+    line-height: 1.6;
+    font-size: 14px;
+    white-space: pre-wrap;
+    word-break: break-word;
+  }
+  .msg.user .bubble {
+    background: var(--accent);
+    color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg.agent .bubble {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-bottom-left-radius: 4px;
+  }
+
+  /* ─── Thought Chain ─── */
+  .thought-chain {
+    max-width: 80%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px;
+    margin-top: 4px;
+    font-size: 12px;
+  }
+  .thought-step {
+    padding: 6px 8px;
+    border-left: 2px solid transparent;
+    margin-bottom: 4px;
+    background: rgba(255,255,255,0.02);
+    border-radius: 4px;
+  }
+  .thought-step .step-label {
+    font-family: var(--font);
+    font-size: 10px;
+    color: var(--text-dim);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+  }
+  .thought-step .thought-text { color: var(--text); line-height: 1.5; margin: 2px 0; }
+  .thought-step .tool-call {
+    color: var(--accent);
+    font-family: var(--font);
+    font-size: 11px;
+  }
+  .thought-step .observation {
+    color: var(--success);
+    font-family: var(--font);
+    font-size: 11px;
+    opacity: 0.8;
+  }
+
+  /* ─── Evolution Bar ─── */
+  .evo-bar {
+    max-width: 80%;
+    background: var(--surface-2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 8px 12px;
+    margin-top: 4px;
+    font-size: 11px;
+    color: var(--success);
+    display: none;
+  }
+
+  /* ─── Input Area ─── */
+  .input-area {
+    padding: 16px 20px;
+    border-top: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    flex-shrink: 0;
+  }
+  .input-area input {
+    flex: 1;
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    padding: 10px 14px;
+    color: var(--text);
+    font-family: var(--font-ui);
+    font-size: 14px;
+    outline: none;
+  }
+  .input-area input:focus { border-color: var(--accent); }
+  .input-area input::placeholder { color: var(--text-dim); }
+
+  .btn {
+    background: var(--accent);
+    color: white;
+    border: none;
+    border-radius: var(--radius);
+    padding: 10px 20px;
+    font-family: var(--font-ui);
+    font-weight: 600;
+    font-size: 13px;
+    cursor: pointer;
+    transition: background 0.15s;
+    white-space: nowrap;
+  }
+  .btn:hover { background: var(--accent-hover); }
+  .btn:disabled { opacity: 0.5; cursor: not-allowed; }
+  .btn-sm {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 6px 12px;
+    border-radius: var(--radius);
+    font-size: 11px;
+    cursor: pointer;
+  }
+  .btn-sm:hover { border-color: var(--accent); color: var(--accent); }
+
+  .typing {
+    display: flex;
+    gap: 4px;
+    padding: 8px;
+  }
+  .typing span {
+    width: 6px; height: 6px;
+    background: var(--accent);
+    border-radius: 50%;
+    animation: bounce 1.4s infinite ease-in-out both;
+  }
+  .typing span:nth-child(1) { animation-delay: -0.32s; }
+  .typing span:nth-child(2) { animation-delay: -0.16s; }
+  @keyframes bounce {
+    0%, 80%, 100% { transform: scale(0); }
+    40% { transform: scale(1); }
+  }
+
+  ::-webkit-scrollbar { width: 6px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+
+  .empty-state { color: var(--text-dim); font-size: 12px; text-align: center; padding: 20px; }
+  .tag {
+    display: inline-block;
+    padding: 1px 6px;
+    border-radius: 3px;
+    font-size: 10px;
+    background: var(--surface-2);
+    color: var(--text-dim);
+    margin: 1px;
+  }
+</style>
+</head>
+<body>
+
+<div class="sidebar">
+  <div class="sidebar-header">
+    <h1>Cogni<span>Agent Lab</span></h1>
+    <p>Create → Chat → Watch it grow</p>
+  </div>
+
+  <div class="tabs">
+    <div class="tab active" onclick="switchTab('create')">Create</div>
+    <div class="tab" onclick="switchTab('self')">Self</div>
+    <div class="tab" onclick="switchTab('memory')">Memory</div>
+    <div class="tab" onclick="switchTab('evo')">Evolution</div>
+  </div>
+
+  <!-- Create Tab -->
+  <div class="tab-content active" id="tab-create">
+    <div class="panel-section">
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">NAME</label>
+      <input id="agent-name" value="小悟" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:13px;margin-bottom:8px;" />
+    </div>
+    <div class="panel-section">
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">ROLE</label>
+      <input id="agent-role" value="research assistant" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:13px;margin-bottom:8px;" />
+    </div>
+    <div class="panel-section">
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">PERSONALITY</label>
+      <input id="agent-personality" value="严谨, 友善, 好奇" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:13px;margin-bottom:8px;" />
+    </div>
+    <div class="panel-section">
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">VALUES</label>
+      <input id="agent-values" value="数据驱动, 保护隐私" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:13px;margin-bottom:8px;" />
+    </div>
+    <div class="panel-section">
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">MODEL</label>
+      <select id="agent-model" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:13px;margin-bottom:8px;">
+        <option value="gpt-4o-mini">GPT-4o Mini (fast)</option>
+        <option value="gpt-4o" selected>GPT-4o (balanced)</option>
+        <option value="claude-sonnet-4-6">Claude Sonnet 4.6</option>
+        <option value="claude-opus-4-8">Claude Opus 4.8</option>
+      </select>
+    </div>
+    <div class="panel-section">
+      <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">TOOLS</label>
+      <div style="display:flex;flex-wrap:wrap;gap:4px;">
+        <label class="tag" style="cursor:pointer;"><input type="checkbox" id="t-search" checked> Web Search</label>
+        <label class="tag" style="cursor:pointer;"><input type="checkbox" id="t-fetch" checked> Web Fetch</label>
+        <label class="tag" style="cursor:pointer;"><input type="checkbox" id="t-calc" checked> Calculator</label>
+        <label class="tag" style="cursor:pointer;"><input type="checkbox" id="t-python" checked> Python</label>
+        <label class="tag" style="cursor:pointer;"><input type="checkbox" id="t-screen" checked> Screenshot</label>
+      </div>
+    </div>
+    <button class="btn" id="create-btn" onclick="createAgent()" style="width:100%;margin-top:8px;">🚀 Create Agent</button>
+    <div id="agent-status" style="margin-top:8px;padding:8px;background:var(--bg);border-radius:var(--radius);font-size:12px;color:var(--text-dim);">—</div>
+  </div>
+
+  <!-- Self Tab -->
+  <div class="tab-content" id="tab-self">
+    <div id="self-panel"><div class="empty-state">Create an agent first</div></div>
+  </div>
+
+  <!-- Memory Tab -->
+  <div class="tab-content" id="tab-memory">
+    <div style="display:flex;gap:4px;margin-bottom:8px;">
+      <input id="mem-search" placeholder="Search memory..." style="flex:1;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:6px 8px;color:var(--text);font-size:12px;outline:none;" />
+      <button class="btn-sm" onclick="searchMemory()">🔍</button>
+    </div>
+    <div id="memory-panel"><div class="empty-state">Create an agent first</div></div>
+  </div>
+
+  <!-- Evolution Tab -->
+  <div class="tab-content" id="tab-evo">
+    <div id="evo-panel"><div class="empty-state">Create an agent first</div></div>
+  </div>
+</div>
+
+<div class="main">
+  <div class="chat-header">
+    <div class="title">💬 <span id="agent-name-display">CogniAgent</span></div>
+    <div style="display:flex;gap:6px;">
+      <span id="tool-indicator" style="font-size:11px;color:var(--text-dim);"></span>
+      <button class="btn-sm" onclick="resetChat()">↺ Reset</button>
+    </div>
+  </div>
+
+  <div class="messages" id="messages">
+    <div class="msg agent">
+      <div class="bubble">👋 欢迎来到 CogniAgent Lab！在左侧 Create 面板创建一个 Agent 开始体验</div>
+    </div>
+  </div>
+
+  <div class="input-area">
+    <input id="chat-input" type="text" placeholder="Type a message..." disabled
+           onkeydown="if(event.key==='Enter') sendMessage()" />
+    <button class="btn" id="send-btn" disabled onclick="sendMessage()">Send</button>
+  </div>
+</div>
+
+<script>
+let sessionId = null;
+let autoRefresh = null;
+
+// ─── Tab Switching ────────────────────────────────────────
+
+function switchTab(name) {
+  document.querySelectorAll('.tab').forEach(t => t.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(t => t.classList.remove('active'));
+  document.querySelector(`.tab[onclick*="${name}"]`).classList.add('active');
+  document.getElementById(`tab-${name}`).classList.add('active');
+  if (name === 'self') refreshSelf();
+  if (name === 'memory') searchMemory();
+  if (name === 'evo') refreshEvolution();
+}
+
+// ─── Create Agent ─────────────────────────────────────────
+
+async function createAgent() {
+  const btn = document.getElementById('create-btn');
+  btn.disabled = true;
+
+  const tools = [];
+  if (document.getElementById('t-search').checked) tools.push('web_search');
+  if (document.getElementById('t-fetch').checked) tools.push('web_fetch');
+  if (document.getElementById('t-calc').checked) tools.push('calculator');
+  if (document.getElementById('t-python').checked) tools.push('python_repl');
+  if (document.getElementById('t-screen').checked) tools.push('screenshot');
+
+  const personality = document.getElementById('agent-personality').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+  const values = document.getElementById('agent-values').value
+    .split(',').map(s => s.trim()).filter(Boolean);
+
+  try {
+    const resp = await fetch('/api/agents', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        name: document.getElementById('agent-name').value,
+        role: document.getElementById('agent-role').value,
+        personality: personality,
+        values: values,
+        model: document.getElementById('agent-model').value,
+        tools: tools,
+      }),
+    });
+    const data = await resp.json();
+    sessionId = data.session_id;
+
+    document.getElementById('agent-status').innerHTML = `✅ <b>${data.name}</b> (${data.role}) — ${data.tool_count} tools`;
+    document.getElementById('agent-name-display').textContent = data.name;
+    document.getElementById('tool-indicator').textContent = `${data.tool_count} tools loaded`;
+    document.getElementById('chat-input').disabled = false;
+    document.getElementById('send-btn').disabled = false;
+    document.getElementById('chat-input').focus();
+
+    document.getElementById('messages').innerHTML =
+      `<div class="msg agent"><div class="bubble">🤖 Agent <b>${data.name}</b> created as ${data.role}. Try asking something!</div></div>`;
+
+    // Auto-refresh panels
+    if (autoRefresh) clearInterval(autoRefresh);
+    autoRefresh = setInterval(() => { if (sessionId) { refreshSelf(); } }, 5000);
+
+  } catch (e) {
+    document.getElementById('agent-status').innerHTML = `❌ Error: ${e.message}`;
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ─── Chat ─────────────────────────────────────────────────
+
+async function sendMessage() {
+  const input = document.getElementById('chat-input');
+  const msg = input.value.trim();
+  if (!msg || !sessionId) return;
+
+  input.value = '';
+  addMessage('user', msg);
+
+  const typingDiv = document.createElement('div');
+  typingDiv.className = 'msg agent';
+  typingDiv.id = 'typing';
+  typingDiv.innerHTML = '<div class="typing"><span></span><span></span><span></span></div>';
+  document.getElementById('messages').appendChild(typingDiv);
+  scrollToBottom();
+
+  try {
+    const resp = await fetch('/api/chat', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ session_id: sessionId, message: msg }),
+    });
+    const data = await resp.json();
+    removeTyping();
+    addAgentMessage(data);
+  } catch (e) {
+    removeTyping();
+    addMessage('agent', '⚠️ Error: ' + e.message);
+  }
+}
+
+function addMessage(role, content) {
+  const div = document.createElement('div');
+  div.className = `msg ${role}`;
+  div.innerHTML = `<div class="bubble">${escapeHtml(content)}</div>`;
+  document.getElementById('messages').appendChild(div);
+  scrollToBottom();
+}
+
+function addAgentMessage(data) {
+  const container = document.getElementById('messages');
+
+  // Response bubble
+  const msgDiv = document.createElement('div');
+  msgDiv.className = 'msg agent';
+  msgDiv.innerHTML = `<div class="bubble">${escapeHtml(data.response)}</div>`;
+  container.appendChild(msgDiv);
+
+  // Thought chain
+  if (data.thought_chain && data.thought_chain.length > 0) {
+    const chainDiv = document.createElement('div');
+    chainDiv.className = 'thought-chain';
+    let html = '<div style="font-size:10px;color:var(--text-dim);margin-bottom:4px;">🧠 Thought Chain</div>';
+    data.thought_chain.forEach(s => {
+      html += `<div class="thought-step">`;
+      html += `<div class="step-label">Step ${s.step}</div>`;
+      if (s.thought) html += `<div class="thought-text">💭 ${escapeHtml(s.thought)}</div>`;
+      if (s.action) html += `<div class="tool-call">🔧 ${escapeHtml(s.action)}(${JSON.stringify(s.action_input)})</div>`;
+      if (s.observation) html += `<div class="observation">📊 ${escapeHtml(s.observation.substring(0, 200))}</div>`;
+      if (s.final_answer) html += `<div style="color:var(--success);font-size:11px;">✅ Final answer</div>`;
+      html += `</div>`;
+    });
+    chainDiv.innerHTML = html;
+    container.appendChild(chainDiv);
+  }
+
+  // Evolution bar
+  if (data.evolution) {
+    const evo = data.evolution;
+    const evoDiv = document.createElement('div');
+    evoDiv.className = 'evo-bar';
+    evoDiv.style.display = 'block';
+    evoDiv.innerHTML = `🔄 <b>Evolution</b> — ${evo.reflection?.insights_count || 0} insights · ${evo.reflection?.new_capabilities?.length || 0} new capabilities · ${evo.memories_consolidated || 0} memories stored`;
+    container.appendChild(evoDiv);
+  }
+
+  scrollToBottom();
+}
+
+// ─── Panels ───────────────────────────────────────────────
+
+async function refreshSelf() {
+  if (!sessionId) return;
+  try {
+    const resp = await fetch(`/api/agents/${sessionId}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderSelf(data);
+  } catch (e) {}
+}
+
+function renderSelf(data) {
+  const panel = document.getElementById('self-panel');
+
+  // Profile
+  let html = `<div class="panel-section"><h3>👤 Identity Profile</h3>`;
+  html += `<div class="profile-row"><span class="label">Name</span><span class="value">${escapeHtml(data.profile.name)}</span></div>`;
+  html += `<div class="profile-row"><span class="label">Role</span><span class="value">${escapeHtml(data.profile.role)}</span></div>`;
+  html += `<div class="profile-row"><span class="label">Personality</span><span class="value">${data.profile.personality.map(t => `<span class="tag">${t}</span>`).join('')}</span></div>`;
+  html += `<div class="profile-row"><span class="label">Values</span><span class="value">${data.profile.values.map(v => `<span class="tag">${v}</span>`).join('')}</span></div>`;
+  html += `<div class="profile-row"><span class="label">Tools</span><span class="value">${data.tool_names.map(t => `<span class="tag">${t}</span>`).join('')}</span></div>`;
+  html += `</div>`;
+
+  // Capabilities
+  html += `<div class="panel-section"><h3>📊 Capability Map</h3>`;
+  if (data.capabilities.length === 0) {
+    html += `<div class="empty-state">No capabilities yet</div>`;
+  } else {
+    data.capabilities.forEach(c => {
+      const pct = Math.round(c.confidence * 100);
+      html += `<div class="cap-bar"><span class="name">${c.name}</span><div class="bar-bg"><div class="bar-fill" style="width:${pct}%"></div></div><span class="pct">${pct}%</span></div>`;
+    });
+  }
+  html += `</div>`;
+
+  panel.innerHTML = html;
+}
+
+async function searchMemory() {
+  if (!sessionId) return;
+  const query = document.getElementById('mem-search').value;
+  try {
+    const url = `/api/agents/${sessionId}/memory?query=${encodeURIComponent(query)}&top_k=20`;
+    const resp = await fetch(url);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderMemory(data);
+  } catch (e) {}
+}
+
+function renderMemory(data) {
+  const panel = document.getElementById('memory-panel');
+  if (!data.memories || data.memories.length === 0) {
+    panel.innerHTML = `<div class="empty-state">No memories yet</div>`;
+    return;
+  }
+  let html = `<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">📦 Working: ${data.counts.working} · Persistent: ${data.counts.persistent}</div>`;
+  data.memories.forEach(m => {
+    html += `<div class="mem-item"><span class="tag">${m.memory_type}</span> <span class="importance">${Math.round(m.importance * 100)}%</span><br>${escapeHtml(m.content.substring(0, 200))}</div>`;
+  });
+  panel.innerHTML = html;
+}
+
+async function refreshEvolution() {
+  if (!sessionId) return;
+  try {
+    const resp = await fetch(`/api/agents/${sessionId}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderEvolution(data);
+  } catch (e) {}
+}
+
+function renderEvolution(data) {
+  const panel = document.getElementById('evo-panel');
+  if (!data.evolution_history || data.evolution_history.length === 0) {
+    panel.innerHTML = `<div class="empty-state">No evolution yet — start chatting!</div>`;
+    return;
+  }
+
+  let html = `<div style="font-size:11px;color:var(--text-dim);margin-bottom:8px;">🔄 ${data.evolution_history.length} evolution events</div>`;
+  data.evolution_history.slice().reverse().slice(0, 50).forEach(e => {
+    const typeClass = e.type in {
+      'insight': 'type-insight',
+      'self_correction': 'type-self_correction',
+      'capability_learned': 'type-capability_learned',
+      'personality_shift': 'type-personality_shift',
+    } ? `type-${e.type}` : 'type-default';
+    html += `<div class="evo-item"><span class="type ${typeClass}">${e.type}</span> ${escapeHtml(e.description)}<br><span style="font-size:10px;color:var(--text-dim);font-family:var(--font);">${new Date(e.timestamp).toLocaleString()}</span></div>`;
+  });
+  panel.innerHTML = html;
+}
+
+// ─── Reset ────────────────────────────────────────────────
+
+async function resetChat() {
+  if (!sessionId) return;
+  await fetch(`/api/agents/${sessionId}/reset`, { method: 'POST' });
+  document.getElementById('messages').innerHTML =
+    `<div class="msg agent"><div class="bubble">🔄 Conversation reset. Identity and memories preserved.</div></div>`;
+}
+
+// ─── Utility ──────────────────────────────────────────────
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+function scrollToBottom() {
+  const msgs = document.getElementById('messages');
+  msgs.scrollTop = msgs.scrollHeight;
+}
+</script>
+</body>
+</html>

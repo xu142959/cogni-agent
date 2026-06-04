@@ -1,0 +1,121 @@
+Metadata-Version: 2.4
+Name: cogni-agent
+Version: 0.1.0
+Summary: A cognitive AI Agent framework — agents with self-awareness, memory, and evolution
+Author-email: CogniAgent Team <team@cogni-agent.dev>
+License: MIT
+Project-URL: homepage, https://github.com/cogni-agent/cogni-agent
+Project-URL: repository, https://github.com/cogni-agent/cogni-agent
+Project-URL: documentation, https://cogni-agent.dev
+Project-URL: changelog, https://github.com/cogni-agent/cogni-agent/releases
+Keywords: ai,agent,llm,cognitive,framework,multi-agent,autonomous,reasoning,tool-use,computer-use,agent-framework
+Classifier: Development Status :: 3 - Alpha
+Classifier: Intended Audience :: Developers
+Classifier: Topic :: Scientific/Engineering :: Artificial Intelligence
+Classifier: License :: OSI Approved :: MIT License
+Classifier: Programming Language :: Python :: 3
+Classifier: Programming Language :: Python :: 3.11
+Classifier: Programming Language :: Python :: 3.12
+Classifier: Programming Language :: Python :: 3.13
+Classifier: Operating System :: MacOS
+Classifier: Operating System :: POSIX :: Linux
+Classifier: Typing :: Typed
+Requires-Python: >=3.11
+Description-Content-Type: text/markdown
+License-File: LICENSE
+Requires-Dist: litellm>=1.60.0
+Requires-Dist: pydantic<3,>=2.0
+Requires-Dist: chromadb>=0.6.0
+Requires-Dist: openai>=1.0.0
+Requires-Dist: aiohttp>=3.9
+Requires-Dist: structlog>=24.0
+Requires-Dist: httpx>=0.28
+Requires-Dist: duckduckgo_search>=8.0
+Requires-Dist: aiofiles>=25.0
+Requires-Dist: Pillow>=10.0
+Requires-Dist: mss>=9.0
+Provides-Extra: dev
+Requires-Dist: pytest>=8.0; extra == "dev"
+Requires-Dist: pytest-asyncio>=0.24; extra == "dev"
+Requires-Dist: pytest-cov>=5.0; extra == "dev"
+Requires-Dist: ruff>=0.5; extra == "dev"
+Requires-Dist: pre-commit>=3.8; extra == "dev"
+Requires-Dist: ipython>=8.0; extra == "dev"
+Provides-Extra: web
+Requires-Dist: fastapi>=0.115; extra == "web"
+Requires-Dist: uvicorn>=0.30; extra == "web"
+Provides-Extra: gui
+Requires-Dist: pyautogui>=0.9; extra == "gui"
+Requires-Dist: pynput>=1.7; extra == "gui"
+Provides-Extra: all
+Requires-Dist: cogni-agent[dev,gui,web]; extra == "all"
+Dynamic: license-file
+
+# CogniAgent
+
+**A cognitive AI Agent framework — agents with self-awareness, memory, and evolution.**
+
+```python
+from cogni_agent import AgentRuntime
+
+agent = await AgentRuntime.create(
+    name="小悟",
+    role="数据分析助手",
+    personality=["严谨", "友善"],
+    model="gpt-4o",
+)
+
+result = await agent.run("分析这份销售数据的趋势")
+print(result)
+```
+
+## Philosophy
+
+Most agent frameworks are **workflow orchestrators** — they define DAGs, chain tool calls, and execute
+predefined pipelines. CogniAgent is different:
+
+- 🧠 **Cognitive Engine first** — built-in reasoning, planning, and reflection
+- 👤 **Self-identity** — agents know who they are (name, role, personality, values)
+- 🔄 **Auto-evolution** — agents learn from experience and grow over time
+- 💾 **Structured memory** — working, semantic, episodic, and procedural memory layers
+
+## Quick Start
+
+```bash
+pip install cogni-agent
+```
+
+```python
+from cogni_agent import AgentRuntime
+
+# Create an agent with identity
+agent = await AgentRuntime.create(
+    name="Alex",
+    role="research assistant",
+    personality=["thorough", "curious"],
+)
+
+# Run a task
+response = await agent.run("Summarize the latest AI research papers")
+print(response)
+```
+
+## Features
+
+- **Multi-model LLM Gateway** — 100+ models via litellm
+- **ReAct & Plan-and-Execute** reasoning engines
+- **Identity Profile** system for agent self-awareness
+- **Semantic memory** with vector storage (ChromaDB)
+- **Working memory** with token-aware context management
+- **Tool system** with MCP and function calling support
+- **Structured logging** via structlog + OpenTelemetry
+
+## Status
+
+🚧 Alpha — under active development.
+
+Phase 1 delivers: LLM Gateway → Reasoning Engine → Identity Profile → Memory System
+
+## License
+
+MIT
