@@ -46,6 +46,8 @@ dependencies = [
     "aiofiles>=25.0",
     "Pillow>=10.0",
     "mss>=9.0",
+    "mcp>=1.0",
+    "aiosqlite>=0.20",
 ]
 
 [project.optional-dependencies]
@@ -65,8 +67,12 @@ gui = [
     "pyautogui>=0.9",
     "pynput>=1.7",
 ]
+windows = [
+    "pywin32>=305",
+    "pygetwindow>=0.0.9",
+]
 all = [
-    "cogni-agent[dev,web,gui]",
+    "cogni-agent[dev,web,gui,windows]",
 ]
 
 [project.urls]

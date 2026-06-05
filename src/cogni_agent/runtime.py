@@ -7,6 +7,7 @@ from cogni_agent.core.types import (
     AgentContext,
     AgentID,
     IdentityProfile,
+    LLMConfig,
     Message,
     Reflection,
 )
@@ -57,14 +58,36 @@ class AgentRuntime:
         personality: list[str] | None = None,
         values: list[str] | None = None,
         model: str = "gpt-4o",
+        api_key: str | None = None,
+        api_base: str | None = None,
         max_iterations: int = 10,
         enable_memory: bool = True,
         enable_evolution: bool = True,
         verbose: bool = False,
         tools: list[BaseTool] | None = None,
     ) -> AgentRuntime:
-        """Factory method — create a fully configured agent in one call."""
-        llm = LiteLLMGateway()
+        """Factory method — create a fully configured agent in one call.
+
+        Args:
+            name: Agent's name (forms its identity).
+            role: Agent's role (e.g. "research assistant").
+            personality: Personality traits (e.g. ["thorough", "curious"]).
+            values: Core values (e.g. ["accuracy", "helpfulness"]).
+            model: LLM model identifier (litellm format). Use "openai/..." for custom API base.
+            api_key: API key (defaults to env var).
+            api_base: Custom API base URL (e.g. for NVIDIA, Ollama, vLLM).
+            max_iterations: Max reasoning loop iterations.
+            enable_memory: Enable semantic memory.
+            enable_evolution: Enable post-task evolution cycle.
+            verbose: Enable detailed logging.
+            tools: List of BaseTool instances the agent can use.
+        """
+        llm_cfg = LLMConfig(
+            model=model,
+            api_key=api_key,
+            api_base=api_base,
+        )
+        llm = LiteLLMGateway(config=llm_cfg)
         config = AgentConfig(
             max_iterations=max_iterations,
             enable_memory=enable_memory,

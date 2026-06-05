@@ -115,7 +115,76 @@ class MemoryManager:
             "total": total + working,
         }
 
-    # ─── Memory Extraction ────────────────────────────────────
+    # ─── Procedural Memory ─────────────────────────────────
+
+    async def store_procedural(
+        self,
+        agent_id: AgentID,
+        skill_name: str,
+        steps: list[str],
+        tools_used: list[str],
+        success_rate: float = 0.5,
+    ) -> MemoryItem:
+        """Store a learned procedure/skill template.
+
+        Procedural memory = "how to do something" knowledge.
+        Stores the steps, tools used, and success rate.
+        """
+        content = (
+            f"[技能] {skill_name}\n"
+            f"步骤:\n" + "\n".join(f"  {i+1}. {s}" for i, s in enumerate(steps))
+        )
+        if tools_used:
+            content += f"\n工具: {', '.join(tools_used)}"
+        content += f"\n成功率: {success_rate:.0%}"
+
+        embedding = await self._embed(content)
+        item = MemoryItem(
+            id=uuid4().hex,
+            agent_id=agent_id,
+            content=content,
+            memory_type="procedural",
+            importance=min(0.9, 0.3 + success_rate * 0.6),
+            embedding=embedding,
+            metadata={
+                "skill_name": skill_name,
+                "steps": steps,
+                "tools_used": tools_used,
+                "success_rate": success_rate,
+            },
+        )
+        await self._store.upsert(agent_id, item)
+        return item
+
+    async def retrieve_procedural(
+        self,
+        agent_id: AgentID,
+        task_description: str,
+        top_k: int = 3,
+    ) -> list[MemoryItem]:
+        """Retrieve relevant procedural memories for a task."""
+        return await self.retrieve_relevant(
+            agent_id, query=task_description, top_k=top_k, min_importance=0.3,
+        )
+
+    async def update_procedural_success(
+        self,
+        agent_id: AgentID,
+        skill_name: str,
+        success: bool,
+    ) -> None:
+        """Update the success rate of a learned skill."""
+        items = await self._store.search(agent_id, [0.0], top_k=50)
+        for item in items:
+            if item.memory_type == "procedural" and skill_name in item.content:
+                meta = item.metadata
+                if meta and "success_rate" in meta:
+                    old_rate = meta["success_rate"]
+                    delta = 0.1 if success else -0.15
+                    meta["success_rate"] = max(0.0, min(1.0, old_rate + delta))
+                    item.importance = min(0.9, 0.3 + meta["success_rate"] * 0.6)
+                    await self._store.upsert(agent_id, item)
+                break
 
     async def extract_semantic(
         self,

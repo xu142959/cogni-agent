@@ -345,6 +345,7 @@
 
   <div class="tabs">
     <div class="tab active" onclick="switchTab('create')">Create</div>
+    <div class="tab" onclick="switchTab('team')">Team</div>
     <div class="tab" onclick="switchTab('self')">Self</div>
     <div class="tab" onclick="switchTab('memory')">Memory</div>
     <div class="tab" onclick="switchTab('evo')">Evolution</div>
@@ -394,6 +395,41 @@
   <!-- Self Tab -->
   <div class="tab-content" id="tab-self">
     <div id="self-panel"><div class="empty-state">Create an agent first</div></div>
+  </div>
+
+  <!-- Team Tab -->
+  <div class="tab-content" id="tab-team">
+    <div id="team-panel">
+      <div class="panel-section">
+        <h3>🤖 Multi-Agent Team</h3>
+        <p style="font-size:12px;color:var(--text-dim);margin-bottom:8px;">
+          Create a team of agents with different roles to debate and collaborate on a task.
+        </p>
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">TASK</label>
+        <textarea id="team-task" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:12px;margin-bottom:8px;resize:vertical;min-height:60px;font-family:var(--font-ui);">分析 AI Agent 框架的优缺点</textarea>
+
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">ROLES</label>
+        <div id="role-checkboxes" style="display:flex;flex-wrap:wrap;gap:4px;margin-bottom:8px;">
+          <label class="tag" style="cursor:pointer;"><input type="checkbox" class="role-cb" value="researcher" checked> Researcher</label>
+          <label class="tag" style="cursor:pointer;"><input type="checkbox" class="role-cb" value="critic"> Critic</label>
+          <label class="tag" style="cursor:pointer;"><input type="checkbox" class="role-cb" value="analyst"> Analyst</label>
+          <label class="tag" style="cursor:pointer;"><input type="checkbox" class="role-cb" value="creative"> Creative</label>
+          <label class="tag" style="cursor:pointer;"><input type="checkbox" class="role-cb" value="synthesizer" checked> Synthesizer</label>
+          <label class="tag" style="cursor:pointer;"><input type="checkbox" class="role-cb" value="planner"> Planner</label>
+        </div>
+
+        <label style="font-size:11px;color:var(--text-dim);display:block;margin-bottom:4px;">DEBATE ROUNDS</label>
+        <select id="team-rounds" style="width:100%;background:var(--bg);border:1px solid var(--border);border-radius:var(--radius);padding:8px;color:var(--text);font-size:12px;margin-bottom:8px;">
+          <option value="2">2 rounds (quick)</option>
+          <option value="3" selected>3 rounds (balanced)</option>
+          <option value="5">5 rounds (thorough)</option>
+        </select>
+
+        <button class="btn" id="team-btn" onclick="startDebate()" style="width:100%;">🚀 Start Team Debate</button>
+      </div>
+      <div id="team-result" style="display:none;"></div>
+      <div id="team-history" style="margin-top:8px;"></div>
+    </div>
   </div>
 
   <!-- Memory Tab -->
@@ -447,6 +483,7 @@ function switchTab(name) {
   if (name === 'self') refreshSelf();
   if (name === 'memory') searchMemory();
   if (name === 'evo') refreshEvolution();
+  if (name === 'team') loadRoleTemplates();
 }
 
 // ─── Create Agent ─────────────────────────────────────────
@@ -685,6 +722,69 @@ async function resetChat() {
   await fetch(`/api/agents/${sessionId}/reset`, { method: 'POST' });
   document.getElementById('messages').innerHTML =
     `<div class="msg agent"><div class="bubble">🔄 Conversation reset. Identity and memories preserved.</div></div>`;
+}
+
+// ─── Multi-Agent Team ───────────────────────────────────
+
+async function loadRoleTemplates() {
+  try {
+    const resp = await fetch('/api/teams/roles');
+    if (resp.ok) {
+      const data = await resp.json();
+      // Update checkboxes if roles are returned
+    }
+  } catch(e) {}
+}
+
+async function startDebate() {
+  const btn = document.getElementById('team-btn');
+  btn.disabled = true;
+  btn.textContent = '⏳ Debating...';
+
+  const task = document.getElementById('team-task').value;
+  const rounds = parseInt(document.getElementById('team-rounds').value);
+  const roles = Array.from(document.querySelectorAll('.role-cb:checked')).map(cb => cb.value);
+
+  try {
+    // Step 1: Create team
+    const teamResp = await fetch('/api/teams', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ task, max_debate_rounds: rounds, roles }),
+    });
+    const team = await teamResp.json();
+    const teamId = team.team_id;
+
+    // Show team created
+    document.getElementById('team-result').style.display = 'block';
+    document.getElementById('team-result').innerHTML =
+      `<div style="font-size:12px;color:var(--success);margin-bottom:8px;">✅ Team created: ${team.num_agents} agents, ${team.role_names.join(', ')}</div>`;
+
+    // Step 2: Run debate
+    const debateResp = await fetch(`/api/teams/${teamId}/debate`, { method: 'POST' });
+    const result = await debateResp.json();
+
+    // Step 3: Show result
+    let html = `<div class="panel-section"><h3>📝 Final Answer</h3>`;
+    html += `<div style="background:var(--surface-2);padding:10px;border-radius:var(--radius);font-size:12px;line-height:1.6;max-height:300px;overflow-y:auto;">${escapeHtml(result.final_answer)}</div></div>`;
+
+    html += `<div class="panel-section"><h3>👥 Contributions</h3>`;
+    result.contributions.forEach(c => {
+      html += `<div class="evo-item"><span class="type type-insight">${c.agent}</span> ${c.role} — ${c.message_count} msgs</div>`;
+    });
+    html += `</div>`;
+
+    html += `<div style="font-size:11px;color:var(--text-dim);margin-top:4px;">${result.num_agents} agents · ${result.rounds} rounds · consensus: ${result.consensus}</div>`;
+
+    document.getElementById('team-result').innerHTML = html;
+
+  } catch(e) {
+    document.getElementById('team-result').style.display = 'block';
+    document.getElementById('team-result').innerHTML = `<div style="color:var(--error);font-size:12px;">❌ Error: ${e.message}</div>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '🚀 Start Team Debate';
+  }
 }
 
 // ─── Utility ──────────────────────────────────────────────

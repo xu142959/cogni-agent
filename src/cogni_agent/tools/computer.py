@@ -1,17 +1,24 @@
-"""Computer Control Tools for CogniAgent — cross-platform (macOS / Linux / Windows).
+"""Computer Control Tools for CogniAgent — 像人类一样操作电脑。
 
-Architecture:
-  ┌─────────────────────────────────────────────┐
-  │              ComputerTool (Base)              │
-  ├──────────────────┬──────────────────┬────────┤
-  │   MacBackend     │   LinuxBackend   │ Win*   │
-  │  (CGImage+Apple │  (X11/Wayland)   │ (todo) │
-  │   Scripts)      │                  │        │
-  └──────────────────┴──────────────────┴────────┘
+核心理念：不靠截图定位，而是用快捷键、命令行、系统 API 直接控制。
 
-Each tool auto-detects the OS at runtime and uses the correct backend.
-macOS backends: pyautogui + AppleScript + mss
-Linux backends: pyautogui (X11) + mss + xdotool/wmctrl
+人类怎么操作电脑？
+  1. 按 Win/Command 打开开始菜单
+  2. 打字搜索程序 → Enter 打开
+  3. Alt+Tab 切换窗口
+  4. Ctrl+C / Ctrl+V 复制粘贴
+  5. 在终端里敲命令
+  6. 直接打开文件/文件夹
+
+CogniAgent 的电脑控制也一样：
+  → computer_open_program("chrome")      # 打开浏览器
+  → computer_press("tab", 3)              # 按3次Tab
+  → computer_type("youtube.com")          # 打字
+  → computer_press("enter")               # 按回车
+  → computer_hotkey("ctrl", "c")          # 复制
+  → computer_focus_window("Chrome")       # 切换到Chrome
+
+跨平台支持：macOS / Linux / Windows 统一接口
 """
 
 from __future__ import annotations
@@ -50,254 +57,192 @@ class OS(Enum):
 CURRENT_OS = OS.detect()
 
 
-# ─── Backend Abstraction ───────────────────────────────────
+# ─── 键盘映射 ─────────────────────────────────────────────
+
+KEY_MAP = {
+    # 通用键
+    "enter": "return", "return": "return",
+    "esc": "escape", "escape": "escape",
+    "tab": "tab",
+    "space": "space", " ": "space",
+    "backspace": "backspace", "delete": "backspace",
+    # 方向键
+    "up": "up", "down": "down", "left": "left", "right": "right",
+    # 功能键
+    "f1": "f1", "f2": "f2", "f3": "f3", "f4": "f4",
+    "f5": "f5", "f6": "f6", "f7": "f7", "f8": "f8",
+    "f9": "f9", "f10": "f10", "f11": "f11", "f12": "f12",
+    # 修饰键
+    "ctrl": "ctrl", "control": "ctrl",
+    "alt": "alt", "option": "alt",
+    "shift": "shift",
+    "cmd": "cmd", "command": "cmd", "win": "cmd", "windows": "cmd",
+    "home": "home", "end": "end",
+    "pageup": "pageup", "pagedown": "pagedown",
+}
+
+# 快捷键中的修饰键映射
+MODIFIER_MAP = {"ctrl", "alt", "shift", "cmd"}
+
+
+# ─── 后端抽象 ─────────────────────────────────────────────
 
 class ComputerBackend(ABC):
-    """Abstract computer control backend — platform-specific implementations."""
+    """系统操作后端 — 直接控制系统，不依赖截图。"""
 
     @abstractmethod
-    def screenshot(self, output_path: str) -> str:
-        """Take a screenshot and save to path. Returns path."""
-        ...
-
-    def screenshot_bytes(self) -> bytes:
-        """Take a screenshot and return raw PNG bytes."""
+    def get_active_window(self) -> str:
+        """获取当前活动窗口标题。"""
         ...
 
     @abstractmethod
-    def mouse_move(self, x: int, y: int) -> None:
-        """Move mouse to absolute coordinates."""
+    def list_windows(self) -> list[str]:
+        """列出所有打开的窗口标题。"""
         ...
 
     @abstractmethod
-    def mouse_click(self, x: int, y: int, button: str = "left") -> None:
-        """Click at position."""
+    def focus_window(self, title: str) -> bool:
+        """切换到指定窗口。"""
         ...
 
     @abstractmethod
-    def mouse_scroll(self, clicks: int) -> None:
-        """Scroll. Positive=up, Negative=down."""
+    def press_key(self, key: str) -> None:
+        """按一个键。"""
         ...
 
     @abstractmethod
-    def keyboard_type(self, text: str) -> None:
-        """Type text."""
+    def type_text(self, text: str) -> None:
+        """输入文本。"""
         ...
 
     @abstractmethod
-    def keyboard_hotkey(self, *keys: str) -> None:
-        """Execute a hotkey combination, e.g. hotkey('ctrl', 'c')"""
+    def hotkey(self, *keys: str) -> None:
+        """按快捷键组合。"""
         ...
 
     @abstractmethod
-    def keyboard_press(self, key: str) -> None:
-        """Press and release a single key."""
+    def open_program(self, program_name: str) -> bool:
+        """打开程序/应用。"""
         ...
 
     @abstractmethod
-    def get_screen_size(self) -> tuple[int, int]:
-        """Return (width, height)."""
-        ...
-
-    @abstractmethod
-    def get_active_window_title(self) -> str:
-        """Return the title of the active/focused window."""
-        ...
-
-    @abstractmethod
-    def list_windows(self) -> list[dict]:
-        """List all visible windows with title, position, size."""
-        ...
-
-    @abstractmethod
-    def focus_window(self, title_substring: str) -> bool:
-        """Focus a window by title substring. Returns True if found."""
+    def run_command(self, command: str) -> str:
+        """执行命令并返回输出。"""
         ...
 
     @abstractmethod
     def open_file(self, path: str) -> bool:
-        """Open a file with the default application."""
+        """用默认程序打开文件。"""
         ...
 
     @abstractmethod
     def open_terminal(self, command: str = "") -> None:
-        """Open a terminal and optionally run a command."""
+        """打开终端。"""
         ...
 
-    def get_mouse_position(self) -> tuple[int, int]:
-        """Return current mouse (x, y)."""
-        ...
-
-    def get_pixel_color(self, x: int, y: int) -> str:
-        """Get hex color of pixel at (x, y), e.g. '#FF0000'."""
+    @abstractmethod
+    def get_screen_size(self) -> tuple[int, int]:
+        """获取屏幕分辨率。"""
         ...
 
 
-# ─── macOS Backend ─────────────────────────────────────────
+# ─── macOS 后端 ───────────────────────────────────────────
 
 class MacBackend(ComputerBackend):
-    """macOS backend using pyautogui + mss + AppleScript + osascript."""
+    """macOS 后端 — 用 AppleScript + shell 命令直接控制系统。"""
 
-    def __init__(self):
-        self._has_pyautogui = self._check_pyautogui()
-
-    def _check_pyautogui(self) -> bool:
+    def _osascript(self, script: str) -> str:
+        """执行 AppleScript。"""
         try:
-            import pyautogui
-            pyautogui.FAILSAFE = False
-            return True
-        except ImportError:
-            return False
-
-    def _cmd(self, script: str) -> str:
-        """Run an AppleScript command."""
-        try:
-            result = subprocess.run(
+            r = subprocess.run(
                 ["osascript", "-e", script],
                 capture_output=True, text=True, timeout=10,
             )
-            return result.stdout.strip()
+            return r.stdout.strip()
         except Exception as exc:
-            return f"[osascript error: {exc}]"
+            return f""
 
-    def screenshot(self, output_path: str) -> str:
-        try:
-            import mss
-            with mss.mss() as sct:
-                sct.shot(output=output_path)
-            return output_path
-        except ImportError:
-            # Fallback: screencapture CLI
-            subprocess.run(["screencapture", "-x", output_path], check=True)
-            return output_path
-
-    def screenshot_bytes(self) -> bytes:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            path = f.name
-        self.screenshot(path)
-        data = Path(path).read_bytes()
-        os.unlink(path)
-        return data
-
-    def mouse_move(self, x: int, y: int) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.moveTo(x, y)
-        else:
-            self._cmd(f'tell application "System Events" to set position of mouse to {{{x}, {y}}}')
-
-    def mouse_click(self, x: int, y: int, button: str = "left") -> None:
-        self.mouse_move(x, y)
-        btn = "left" if button == "left" else "right"
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.click(button=btn)
-        else:
-            self._cmd(f'tell application "System Events" to click at {{{x}, {y}}}')
-
-    def mouse_scroll(self, clicks: int) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.scroll(clicks)
-        else:
-            self._cmd(
-                f'tell application "System Events" to '
-                f'set value of scroll wheel of process "Finder" to {clicks}'
-            )
-
-    def keyboard_type(self, text: str) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.write(text)
-        else:
-            escaped = text.replace('"', '\\"')
-            self._cmd(
-                f'tell application "System Events" to keystroke "{escaped}"'
-            )
-
-    def keyboard_hotkey(self, *keys: str) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.hotkey(*keys)
-        else:
-            mods = "command" if len(keys) > 1 else ""
-            key = keys[-1]
-            self._cmd(
-                f'tell application "System Events" to keystroke "{key}" '
-                f'using command down'
-            )
-
-    def keyboard_press(self, key: str) -> None:
-        key_map = {
-            "enter": "return", "esc": "escape", "tab": "tab",
-            "up": "up", "down": "down", "left": "left", "right": "right",
-            "backspace": "delete", "space": "space",
-        }
-        mapped = key_map.get(key.lower(), key)
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.press(mapped)
-        else:
-            self._cmd(
-                f'tell application "System Events" to keystroke "{mapped}"'
-            )
-
-    def get_screen_size(self) -> tuple[int, int]:
-        try:
-            import mss
-            with mss.mss() as sct:
-                monitor = sct.monitors[0]
-                return (monitor["width"], monitor["height"])
-        except ImportError:
-            output = self._cmd(
-                'tell application "Finder" to get bounds of window of desktop'
-            )
-            parts = output.split(", ")
-            if len(parts) == 4:
-                return (int(parts[2]), int(parts[3]))
-            return (1440, 900)
-
-    def get_active_window_title(self) -> str:
-        return self._cmd(
-            'tell application "System Events" to get name of first process '
-            'whose frontmost is true'
+    def get_active_window(self) -> str:
+        return self._osascript(
+            'tell application "System Events" to get name of first process whose frontmost is true'
         )
 
-    def get_mouse_position(self) -> tuple[int, int]:
-        if self._has_pyautogui:
-            import pyautogui
-            x, y = pyautogui.position()
-            return (x, y)
-        output = self._cmd(
-            'tell application "System Events" to get position of mouse'
+    def list_windows(self) -> list[str]:
+        output = self._osascript(
+            'tell application "System Events" to get name of every process whose background only is false'
         )
-        parts = output.replace("{", "").replace("}", "").split(", ")
-        if len(parts) == 2:
-            return (int(parts[0]), int(parts[1]))
-        return (0, 0)
+        return [n.strip() for n in output.split(", ") if n.strip()]
 
-    def get_pixel_color(self, x: int, y: int) -> str:
-        import mss
-        with mss.mss() as sct:
-            monitor = {"top": y, "left": x, "width": 1, "height": 1}
-            img = sct.grab(monitor)
-            pixel = img.pixel(0, 0)
-            return f"#{pixel[0]:02x}{pixel[1]:02x}{pixel[2]:02x}"
-
-    def list_windows(self) -> list[dict]:
-        output = self._cmd(
-            'tell application "System Events" to get name of every process '
-            'whose background only is false'
-        )
-        names = [n.strip() for n in output.split(", ") if n.strip()]
-        return [{"title": n, "app": n, "platform": "mac"} for n in names[:20]]
-
-    def focus_window(self, title_substring: str) -> bool:
-        result = self._cmd(
+    def focus_window(self, title: str) -> bool:
+        self._osascript(
             f'tell application "System Events" to set frontmost of '
-            f'(first process whose name contains "{title_substring}") to true'
+            f'(first process whose name contains "{title}") to true'
         )
-        return "error" not in result.lower()
+        return True
+
+    def press_key(self, key: str) -> None:
+        k = KEY_MAP.get(key.lower(), key)
+        self._osascript(f'tell application "System Events" to keystroke "{k}"')
+
+    def type_text(self, text: str) -> None:
+        escaped = text.replace('"', '\\"')
+        self._osascript(
+            f'tell application "System Events" to keystroke "{escaped}"'
+        )
+
+    def hotkey(self, *keys: str) -> None:
+        lower_keys = [k.lower() for k in keys]
+        # 识别修饰键
+        mods = []
+        main_key = None
+        for k in lower_keys:
+            if k in ("ctrl", "control"):
+                mods.append("control down")
+            elif k in ("alt", "option"):
+                mods.append("option down")
+            elif k in ("shift",):
+                mods.append("shift down")
+            elif k in ("cmd", "command"):
+                mods.append("command down")
+            else:
+                main_key = k
+
+        if main_key:
+            using = " using {" + ", ".join(mods) + "}" if mods else ""
+            mapped = KEY_MAP.get(main_key, main_key)
+            self._osascript(
+                f'tell application "System Events" to keystroke "{mapped}"{using}'
+            )
+
+    def open_program(self, program_name: str) -> bool:
+        try:
+            subprocess.run(["open", "-a", program_name], check=True, timeout=10)
+            return True
+        except Exception:
+            try:
+                subprocess.run(["open", program_name], check=True, timeout=5)
+                return True
+            except Exception:
+                return False
+
+    def run_command(self, command: str) -> str:
+        try:
+            r = subprocess.run(
+                ["bash", "-c", command],
+                capture_output=True, text=True, timeout=30,
+            )
+            output = r.stdout.strip()
+            error = r.stderr.strip()
+            parts = []
+            if output:
+                parts.append(f"Output:\n{output[:2000]}")
+            if error:
+                parts.append(f"Error:\n{error[:500]}")
+            return "\n".join(parts) if parts else "[命令执行完毕，无输出]"
+        except subprocess.TimeoutExpired:
+            return "[命令执行超时]"
+        except Exception as exc:
+            return f"[命令执行失败: {exc}]"
 
     def open_file(self, path: str) -> bool:
         try:
@@ -308,148 +253,41 @@ class MacBackend(ComputerBackend):
 
     def open_terminal(self, command: str = "") -> None:
         if command:
-            script = f'tell application "Terminal" to do script "{command}"'
+            self._osascript(
+                f'tell application "Terminal" to do script "{command}"'
+            )
         else:
-            script = 'tell application "Terminal" to activate'
-        self._cmd(script)
-
-
-# ─── Linux Backend ─────────────────────────────────────────
-
-class LinuxBackend(ComputerBackend):
-    """Linux backend using pyautogui + mss + xdotool + wmctrl."""
-
-    def __init__(self):
-        self._has_pyautogui = self._check_pyautogui()
-
-    def _check_pyautogui(self) -> bool:
-        try:
-            import pyautogui
-            pyautogui.FAILSAFE = False
-            return True
-        except ImportError:
-            return False
-
-    def _cmd(self, cmd: list[str]) -> str:
-        """Run a shell command and return stdout."""
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
-            return result.stdout.strip()
-        except Exception as exc:
-            return f"[error: {exc}]"
-
-    def screenshot(self, output_path: str) -> str:
-        try:
-            import mss
-            with mss.mss() as sct:
-                sct.shot(output=output_path)
-            return output_path
-        except ImportError:
-            self._cmd(["import", "-window", "root", output_path])
-            return output_path
-
-    def screenshot_bytes(self) -> bytes:
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            path = f.name
-        self.screenshot(path)
-        data = Path(path).read_bytes()
-        os.unlink(path)
-        return data
-
-    def mouse_move(self, x: int, y: int) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.moveTo(x, y)
-        else:
-            self._cmd(["xdotool", "mousemove", str(x), str(y)])
-
-    def mouse_click(self, x: int, y: int, button: str = "left") -> None:
-        self.mouse_move(x, y)
-        btn_map = {"left": 1, "middle": 2, "right": 3}
-        btn = btn_map.get(button, 1)
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.click(button=button)
-        else:
-            self._cmd(["xdotool", "click", str(btn)])
-
-    def mouse_scroll(self, clicks: int) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.scroll(clicks)
-        else:
-            btn = 4 if clicks > 0 else 5
-            for _ in range(abs(clicks)):
-                self._cmd(["xdotool", "click", str(btn)])
-
-    def keyboard_type(self, text: str) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.write(text)
-        else:
-            self._cmd(["xdotool", "type", text])
-
-    def keyboard_hotkey(self, *keys: str) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.hotkey(*keys)
-        else:
-            self._cmd(["xdotool", "key"] + [k.lower() for k in keys])
-
-    def keyboard_press(self, key: str) -> None:
-        if self._has_pyautogui:
-            import pyautogui
-            pyautogui.press(key)
-        else:
-            self._cmd(["xdotool", "key", key])
+            self._osascript('tell application "Terminal" to activate')
 
     def get_screen_size(self) -> tuple[int, int]:
-        try:
-            import mss
-            with mss.mss() as sct:
-                monitor = sct.monitors[0]
-                return (monitor["width"], monitor["height"])
-        except ImportError:
-            output = self._cmd(["xdotool", "getdisplaygeometry"])
-            parts = output.split()
-            if len(parts) == 2:
-                return (int(parts[0]), int(parts[1]))
-            return (1920, 1080)
+        output = self._osascript(
+            'tell application "Finder" to get bounds of window of desktop'
+        )
+        parts = output.split(", ")
+        if len(parts) == 4:
+            return (int(parts[2]), int(parts[3]))
+        return (1440, 900)
 
-    def get_active_window_title(self) -> str:
+
+# ─── Linux 后端 ───────────────────────────────────────────
+
+class LinuxBackend(ComputerBackend):
+    """Linux 后端 — 用 xdotool + wmctrl + bash 直接控制系统。"""
+
+    def _cmd(self, cmd: list[str]) -> str:
+        try:
+            r = subprocess.run(cmd, capture_output=True, text=True, timeout=10)
+            return r.stdout.strip()
+        except Exception:
+            return ""
+
+    def get_active_window(self) -> str:
         wid = self._cmd(["xdotool", "getactivewindow"])
         if wid and wid[0].isdigit():
             return self._cmd(["xdotool", "getwindowname", wid])
-        return "unknown"
+        return ""
 
-    def get_mouse_position(self) -> tuple[int, int]:
-        if self._has_pyautogui:
-            import pyautogui
-            x, y = pyautogui.position()
-            return (x, y)
-        output = self._cmd(["xdotool", "getmouselocation"])
-        if not output:
-            return (0, 0)
-        # "x:123 y:456 screen:0 window:789"
-        import re
-        x_match = re.search(r"x:(\d+)", output)
-        y_match = re.search(r"y:(\d+)", output)
-        x = int(x_match.group(1)) if x_match else 0
-        y = int(y_match.group(1)) if y_match else 0
-        return (x, y)
-
-    def get_pixel_color(self, x: int, y: int) -> str:
-        try:
-            import mss
-            with mss.mss() as sct:
-                monitor = {"top": y, "left": x, "width": 1, "height": 1}
-                img = sct.grab(monitor)
-                pixel = img.pixel(0, 0)
-                return f"#{pixel[0]:02x}{pixel[1]:02x}{pixel[2]:02x}"
-        except ImportError:
-            return "#000000"
-
-    def list_windows(self) -> list[dict]:
+    def list_windows(self) -> list[str]:
         output = self._cmd(["wmctrl", "-l"])
         windows = []
         for line in output.split("\n"):
@@ -457,22 +295,60 @@ class LinuxBackend(ComputerBackend):
                 continue
             parts = line.split(None, 3)
             if len(parts) >= 4:
-                windows.append({
-                    "id": parts[0],
-                    "desktop": parts[1],
-                    "pid": parts[2],
-                    "title": parts[3],
-                    "platform": "linux",
-                })
-            elif len(parts) >= 1:
-                windows.append({"id": parts[0], "title": line, "platform": "linux"})
-        return windows[:20]
+                windows.append(parts[3])
+            elif parts:
+                windows.append(line)
+        return windows[:30]
 
-    def focus_window(self, title_substring: str) -> bool:
-        result = self._cmd(
-            ["xdotool", "search", "--name", title_substring, "windowactivate"]
-        )
-        return bool(result.strip())
+    def focus_window(self, title: str) -> bool:
+        result = self._cmd(["xdotool", "search", "--name", title, "windowactivate"])
+        return bool(result)
+
+    def press_key(self, key: str) -> None:
+        k = KEY_MAP.get(key.lower(), key)
+        self._cmd(["xdotool", "key", k])
+
+    def type_text(self, text: str) -> None:
+        self._cmd(["xdotool", "type", text])
+
+    def hotkey(self, *keys: str) -> None:
+        lower_keys = [k.lower() for k in keys]
+        mapped = [KEY_MAP.get(k, k) for k in lower_keys]
+        self._cmd(["xdotool", "key"] + mapped)
+
+    def open_program(self, program_name: str) -> bool:
+        try:
+            # 尝试直接启动程序
+            subprocess.Popen(
+                [program_name],
+                stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return True
+        except FileNotFoundError:
+            try:
+                self._cmd(["xdg-open", program_name])
+                return True
+            except Exception:
+                return False
+
+    def run_command(self, command: str) -> str:
+        try:
+            r = subprocess.run(
+                ["bash", "-c", command],
+                capture_output=True, text=True, timeout=30,
+            )
+            output = r.stdout.strip()[:2000]
+            error = r.stderr.strip()[:500]
+            parts = []
+            if output:
+                parts.append(f"Output:\n{output}")
+            if error:
+                parts.append(f"Error:\n{error}")
+            return "\n".join(parts) if parts else "[命令执行完毕，无输出]"
+        except subprocess.TimeoutExpired:
+            return "[命令执行超时]"
+        except Exception as exc:
+            return f"[命令执行失败: {exc}]"
 
     def open_file(self, path: str) -> bool:
         try:
@@ -493,321 +369,300 @@ class LinuxBackend(ComputerBackend):
                 stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
             )
 
-
-# ─── Windows Backend (placeholder) ─────────────────────────
-
-class WindowsBackend(ComputerBackend):
-    """Windows backend — TODO."""
-
-    def screenshot(self, output_path: str) -> str:
-        return "[Windows screenshot not yet implemented]"
-
-    def screenshot_bytes(self) -> bytes:
-        return b""
-
-    def mouse_move(self, x: int, y: int) -> None:
-        pass
-
-    def mouse_click(self, x: int, y: int, button: str = "left") -> None:
-        pass
-
-    def mouse_scroll(self, clicks: int) -> None:
-        pass
-
-    def keyboard_type(self, text: str) -> None:
-        pass
-
-    def keyboard_hotkey(self, *keys: str) -> None:
-        pass
-
-    def keyboard_press(self, key: str) -> None:
-        pass
-
     def get_screen_size(self) -> tuple[int, int]:
+        output = self._cmd(["xdotool", "getdisplaygeometry"])
+        parts = output.split()
+        if len(parts) == 2:
+            return (int(parts[0]), int(parts[1]))
         return (1920, 1080)
 
-    def get_active_window_title(self) -> str:
-        return ""
 
-    def list_windows(self) -> list[dict]:
-        return []
+# ─── Windows 后端 ─────────────────────────────────────────
 
-    def focus_window(self, title_substring: str) -> bool:
-        return False
+class WindowsBackend(ComputerBackend):
+    """Windows 后端 — 用 PowerShell + ctypes 直接控制系统。"""
+
+    def _run_powershell(self, script: str) -> str:
+        try:
+            r = subprocess.run(
+                ["powershell", "-Command", script],
+                capture_output=True, text=True, timeout=10,
+            )
+            return r.stdout.strip()
+        except Exception:
+            return ""
+
+    def get_active_window(self) -> str:
+        import ctypes
+        hwnd = ctypes.windll.user32.GetForegroundWindow()
+        length = ctypes.windll.user32.GetWindowTextLengthW(hwnd)
+        buf = ctypes.create_unicode_buffer(length + 1)
+        ctypes.windll.user32.GetWindowTextW(hwnd, buf, length + 1)
+        return buf.value or ""
+
+    def list_windows(self) -> list[str]:
+        output = self._run_powershell(
+            "(Get-Process | Where-Object {$_.MainWindowTitle -ne ''}) | "
+            "Select-Object -ExpandProperty MainWindowTitle"
+        )
+        return [w.strip() for w in output.split("\n") if w.strip()][:30]
+
+    def focus_window(self, title: str) -> bool:
+        self._run_powershell(
+            f"(Get-Process | Where-Object {{$_.MainWindowTitle -like '*{title}*'}}) | "
+            f"ForEach-Object {{$_.MainWindowHandle}} | "
+            f"ForEach-Object {{[Microsoft.VisualBasic.Interaction]::AppActivate($_)}}"
+        )
+        return True
+
+    def press_key(self, key: str) -> None:
+        import ctypes
+        vk_map = {
+            "enter": 0x0D, "esc": 0x1B, "tab": 0x09,
+            "space": 0x20, "backspace": 0x08,
+            "up": 0x26, "down": 0x28, "left": 0x25, "right": 0x27,
+            "f1": 0x70, "f2": 0x71, "f3": 0x72, "f4": 0x73, "f5": 0x74,
+            "home": 0x24, "end": 0x23, "delete": 0x2E,
+            "pageup": 0x21, "pagedown": 0x22,
+        }
+        vk = vk_map.get(key.lower())
+        if vk is None and len(key) == 1:
+            vk = ord(key.upper())
+        if vk is not None:
+            ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+            ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+
+    def type_text(self, text: str) -> None:
+        import ctypes
+        for char in text:
+            vk = ord(char.upper())
+            ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+            ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+
+    def hotkey(self, *keys: str) -> None:
+        vk_map = {
+            "ctrl": 0x11, "control": 0x11,
+            "alt": 0x12, "shift": 0x10,
+            "win": 0x5B, "tab": 0x09,
+        }
+        import ctypes
+        lower_keys = [k.lower() for k in keys]
+        for k in lower_keys:
+            vk = vk_map.get(k, ord(k.upper()))
+            ctypes.windll.user32.keybd_event(vk, 0, 0, 0)
+        for k in reversed(lower_keys):
+            vk = vk_map.get(k, ord(k.upper()))
+            ctypes.windll.user32.keybd_event(vk, 0, 2, 0)
+
+    def open_program(self, program_name: str) -> bool:
+        try:
+            subprocess.Popen(
+                ["cmd", "/c", "start", "", program_name],
+                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+            return True
+        except Exception:
+            return False
+
+    def run_command(self, command: str) -> str:
+        try:
+            r = subprocess.run(
+                ["cmd", "/c", command],
+                capture_output=True, text=True, timeout=30,
+            )
+            output = r.stdout.strip()
+            error = r.stderr.strip()
+            parts = []
+            if output:
+                parts.append(f"Output:\n{output[:2000]}")
+            if error:
+                parts.append(f"Error:\n{error[:500]}")
+            return "\n".join(parts) if parts else "[命令执行完毕，无输出]"
+        except subprocess.TimeoutExpired:
+            return "[命令执行超时]"
+        except Exception as exc:
+            return f"[命令执行失败: {exc}]"
 
     def open_file(self, path: str) -> bool:
-        return False
+        try:
+            os.startfile(path)
+            return True
+        except Exception:
+            return False
 
     def open_terminal(self, command: str = "") -> None:
-        pass
+        if command:
+            subprocess.Popen(
+                ["cmd", "/c", "start", "cmd", "/k", command],
+                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+        else:
+            subprocess.Popen(
+                ["cmd", "/c", "start", "cmd"],
+                shell=True, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
+            )
+
+    def get_screen_size(self) -> tuple[int, int]:
+        import ctypes
+        return (
+            ctypes.windll.user32.GetSystemMetrics(0),
+            ctypes.windll.user32.GetSystemMetrics(1),
+        )
 
 
-# ─── Backend Factory ───────────────────────────────────────
+# ─── 后端工厂 ─────────────────────────────────────────────
 
 def get_backend() -> ComputerBackend:
-    """Get the appropriate backend for the current OS."""
     if CURRENT_OS == OS.MAC:
         return MacBackend()
     elif CURRENT_OS == OS.LINUX:
         return LinuxBackend()
     elif CURRENT_OS == OS.WINDOWS:
         return WindowsBackend()
-    else:
-        # Fallback: try Linux, then macOS
-        try:
-            return LinuxBackend()
-        except Exception:
-            return MacBackend()
+    return LinuxBackend()
 
 
 _BACKEND = get_backend()
 
 
 # ═══════════════════════════════════════════════════════════
-# Tools
+# 工具定义
 # ═══════════════════════════════════════════════════════════
 
-# ─── Screenshot ────────────────────────────────────────────
+class ComputerPressKey(BaseTool):
+    """按键盘键 — 像人类一样按键操作。"""
 
-class ComputerScreenshot(BaseTool):
-    """Take a screenshot of the current screen."""
-
-    name = "computer_screenshot"
+    name = "press_key"
     description = (
-        "Take a screenshot of the current screen. "
-        "Returns a description of what's visible. "
-        "Use this to understand the current state of the desktop, "
-        "find UI elements, or see what the user is looking at."
-    )
-
-    async def run(self) -> str:
-        """Take a screenshot and describe the result."""
-        with tempfile.NamedTemporaryFile(suffix=".png", delete=False) as f:
-            path = f.name
-
-        try:
-            result_path = _BACKEND.screenshot(path)
-            import os
-            size = os.path.getsize(result_path)
-            w, h = _BACKEND.get_screen_size()
-            active = _BACKEND.get_active_window_title()
-            os.unlink(result_path)
-
-            return (
-                f"Screenshot taken: {w}x{h} ({size:,} bytes)\n"
-                f"Active window: {active}\n"
-                f"Platform: {CURRENT_OS.value}"
-            )
-        except Exception as exc:
-            return f"[Screenshot failed: {exc}]"
-
-
-# ─── Mouse Control ─────────────────────────────────────────
-
-class ComputerMouseMove(BaseTool):
-    """Move the mouse cursor to a position on screen."""
-
-    name = "computer_mouse_move"
-    description = (
-        "Move the mouse cursor to an absolute position on screen. "
-        "Coordinates: (0,0) = top-left. "
-        "Use computer_screenshot or get_screen_size to understand the coordinate space."
+        "按键盘上的一个键。支持所有标准键。\n"
+        "常用键: enter, esc, tab, space, backspace, delete\n"
+        "方向键: up, down, left, right\n"
+        "功能键: f1-f12\n"
+        "字母: a-z (直接传字母本身)"
     )
     schema = ToolSchema(
         properties={
-            "x": {"type": "integer", "description": "X coordinate (horizontal, 0 = left)"},
-            "y": {"type": "integer", "description": "Y coordinate (vertical, 0 = top)"},
+            "key": {"type": "string", "description": "要按的键名，如 enter, tab, a, esc"},
+            "times": {"type": "integer", "description": "按几次（默认1次）"},
         },
-        required=["x", "y"],
+        required=["key"],
     )
 
-    async def run(self, x: int, y: int) -> str:
-        _BACKEND.mouse_move(x, y)
-        return f"Moved mouse to ({x}, {y})"
+    async def run(self, key: str, times: int = 1) -> str:
+        for _ in range(times):
+            _BACKEND.press_key(key)
+        return f"按了 '{key}' {times} 次"
 
-
-class ComputerMouseClick(BaseTool):
-    """Click the mouse at the current position or at specified coordinates."""
-
-    name = "computer_mouse_click"
-    description = (
-        "Click at a position on screen. Defaults to current mouse position "
-        "if x/y not provided. Supports left, right, and middle clicks."
-    )
-    schema = ToolSchema(
-        properties={
-            "x": {"type": "integer", "description": "X coordinate (optional, uses current if omitted)"},
-            "y": {"type": "integer", "description": "Y coordinate (optional)"},
-            "button": {
-                "type": "string",
-                "description": "Mouse button: 'left', 'right', or 'middle' (default: 'left')",
-                "enum": ["left", "right", "middle"],
-            },
-        },
-    )
-
-    async def run(self, x: int | None = None, y: int | None = None, button: str = "left") -> str:
-        if x is not None and y is not None:
-            _BACKEND.mouse_move(x, y)
-        _BACKEND.mouse_click(x or 0, y or 0, button)
-        pos = _BACKEND.get_mouse_position()
-        return f"Clicked {button} button at ({pos[0]}, {pos[1]})"
-
-
-class ComputerMouseScroll(BaseTool):
-    """Scroll the mouse wheel."""
-
-    name = "computer_mouse_scroll"
-    description = (
-        "Scroll the mouse wheel. "
-        "Positive values scroll up, negative values scroll down."
-    )
-    schema = ToolSchema(
-        properties={
-            "clicks": {
-                "type": "integer",
-                "description": "Number of scroll clicks. Positive = up, Negative = down.",
-            },
-        },
-        required=["clicks"],
-    )
-
-    async def run(self, clicks: int) -> str:
-        _BACKEND.mouse_scroll(clicks)
-        direction = "up" if clicks > 0 else "down"
-        return f"Scrolled {direction} {abs(clicks)} clicks"
-
-
-# ─── Keyboard Control ──────────────────────────────────────
 
 class ComputerType(BaseTool):
-    """Type text as if from the keyboard."""
+    """输入文字 — 像人类一样用键盘打字。"""
 
-    name = "computer_type"
+    name = "type_text"
     description = (
-        "Type a string of text at the current cursor position. "
-        "Useful for filling in forms, typing commands, or entering text."
+        "在当前光标位置输入一段文字。\n"
+        "像人类打字一样，每个字符依次输入。\n"
+        "支持中文、英文、数字、符号。"
     )
     schema = ToolSchema(
         properties={
-            "text": {"type": "string", "description": "The text to type"},
+            "text": {"type": "string", "description": "要输入的文字内容"},
         },
         required=["text"],
     )
 
     async def run(self, text: str) -> str:
-        _BACKEND.keyboard_type(text)
-        return f"Typed {len(text)} characters"
+        _BACKEND.type_text(text)
+        return f"输入了 {len(text)} 个字符"
 
 
 class ComputerHotkey(BaseTool):
-    """Press a keyboard shortcut combination."""
+    """快捷键组合 — 像人类一样按快捷键。"""
 
-    name = "computer_hotkey"
+    name = "press_hotkey"
     description = (
-        "Press a keyboard shortcut combination. "
-        "Examples: "
-        'hotkey("command", "c") = Copy, '
-        'hotkey("ctrl", "v") = Paste, '
-        'hotkey("alt", "tab") = Switch windows, '
-        'hotkey("ctrl", "shift", "esc") = Task manager.'
+        "按快捷键组合。\n"
+        "常用快捷键:\n"
+        "  Ctrl+C 复制, Ctrl+V 粘贴, Ctrl+X 剪切, Ctrl+Z 撤销\n"
+        "  Alt+Tab 切换窗口, Ctrl+S 保存\n"
+        "  Win+D 显示桌面 (Windows), Cmd+Space 搜索 (Mac)\n"
+        "  Alt+F4 关闭窗口 (Windows), Cmd+Q 退出 (Mac)"
     )
     schema = ToolSchema(
         properties={
             "keys": {
                 "type": "array",
                 "items": {"type": "string"},
-                "description": "List of keys to press together, e.g. ['command', 'c']",
+                "description": "按键列表, 如 ['ctrl', 'c'], ['alt', 'tab']",
             },
         },
         required=["keys"],
     )
 
     async def run(self, keys: list[str]) -> str:
-        _BACKEND.keyboard_hotkey(*keys)
-        return f"Pressed hotkey: {'+'.join(keys)}"
+        _BACKEND.hotkey(*keys)
+        return f"按了快捷键: {'+'.join(keys)}"
 
 
-class ComputerPress(BaseTool):
-    """Press and release a single key."""
+class ComputerOpenProgram(BaseTool):
+    """打开程序/应用 — 像人类在开始菜单搜索一样打开程序。"""
 
-    name = "computer_press"
+    name = "open_program"
     description = (
-        "Press and release a single key. "
-        "Common keys: enter, esc, tab, space, backspace, "
-        "up, down, left, right, f1-f12, delete, home, end."
+        "打开一个程序或应用。\n"
+        "像人类一样：按Win键→搜索程序名→回车。\n"
+        "示例: 'chrome', 'notepad', 'calculator', 'terminal'"
     )
     schema = ToolSchema(
         properties={
-            "key": {"type": "string", "description": "The key to press"},
+            "name": {"type": "string", "description": "程序名称, 如 chrome, notepad, code"},
         },
-        required=["key"],
+        required=["name"],
     )
 
-    async def run(self, key: str) -> str:
-        _BACKEND.keyboard_press(key)
-        return f"Pressed key: {key}"
+    async def run(self, name: str) -> str:
+        success = _BACKEND.open_program(name)
+        if success:
+            return f"已打开程序: {name}"
+        return f"无法打开: {name}"
 
 
-# ─── Screen / Window Info ──────────────────────────────────
+class ComputerRunShell(BaseTool):
+    """执行命令 — 像人类在终端里敲命令一样。"""
 
-class ComputerScreenInfo(BaseTool):
-    """Get information about the screen and display."""
-
-    name = "computer_screen_info"
+    name = "run_command"
     description = (
-        "Get information about the current display: "
-        "screen resolution, active window, mouse position. "
-        "Use this to understand the coordinate space before clicking or moving."
-    )
-
-    async def run(self) -> str:
-        w, h = _BACKEND.get_screen_size()
-        mx, my = _BACKEND.get_mouse_position()
-        active = _BACKEND.get_active_window_title()
-        return (
-            f"Screen: {w}x{h}\n"
-            f"Mouse: ({mx}, {my})\n"
-            f"Active window: {active}\n"
-            f"OS: {CURRENT_OS.value}"
-        )
-
-
-class ComputerListWindows(BaseTool):
-    """List all visible windows on the desktop."""
-
-    name = "computer_list_windows"
-    description = (
-        "List all visible windows. Returns titles and positions. "
-        "Use this to find the right window before switching focus."
-    )
-
-    async def run(self) -> str:
-        windows = _BACKEND.list_windows()
-        if not windows:
-            return "No windows found or window listing not supported on this platform."
-
-        lines = [f"Windows ({len(windows)}):", ""]
-        for i, w in enumerate(windows, 1):
-            title = w.get("title", w.get("app", "unknown"))
-            lines.append(f"  {i}. {title}")
-        return "\n".join(lines)
-
-
-class ComputerFocusWindow(BaseTool):
-    """Focus/bring a window to the front by its title."""
-
-    name = "computer_focus_window"
-    description = (
-        "Bring a window to the front by matching a substring of its title. "
-        "Use computer_list_windows first to find the exact title."
+        "执行一条系统命令并返回输出结果。\n"
+        "可以用来自动化任何操作：\n"
+        "  - 文件操作: ls, cp, mv, rm\n"
+        "  - 系统信息: ps, top, df, who\n"
+        "  - 网络: ping, curl, ifconfig\n"
+        "  - 进程管理: kill, nohup\n"
+        "  - 任何你可以在终端做的事情"
     )
     schema = ToolSchema(
         properties={
-            "title": {
-                "type": "string",
-                "description": "Substring of the window title to match",
-            },
+            "command": {"type": "string", "description": "要执行的命令"},
+            "timeout": {"type": "integer", "description": "超时秒数（默认30）"},
+        },
+        required=["command"],
+    )
+
+    async def run(self, command: str, timeout: int = 30) -> str:
+        return _BACKEND.run_command(command)
+
+
+class ComputerSwitchWindow(BaseTool):
+    """切换窗口 — 像人类用 Alt+Tab 一样切换窗口。"""
+
+    name = "switch_window"
+    description = (
+        "切换到指定窗口。根据窗口标题匹配。\n"
+        "先使用 list_windows 查看当前打开的窗口。\n"
+        "示例: switch_window('Chrome') 会切换到 Chrome 浏览器"
+    )
+    schema = ToolSchema(
+        properties={
+            "title": {"type": "string", "description": "窗口标题（支持模糊匹配）"},
         },
         required=["title"],
     )
@@ -815,147 +670,86 @@ class ComputerFocusWindow(BaseTool):
     async def run(self, title: str) -> str:
         success = _BACKEND.focus_window(title)
         if success:
-            return f"Focused window: {title}"
-        return f"Could not find window containing: {title}"
+            return f"已切换到窗口: {title}"
+        return f"未找到匹配的窗口: {title}"
 
 
-# ─── System / File ─────────────────────────────────────────
+class ComputerListWindows(BaseTool):
+    """列出窗口 — 查看当前所有打开的窗口。"""
+
+    name = "list_windows"
+    description = (
+        "列出当前所有打开的窗口标题。\n"
+        "在执行 switch_window 之前使用，查看有哪些窗口可以切换。"
+    )
+
+    async def run(self) -> str:
+        windows = _BACKEND.list_windows()
+        if not windows:
+            return "当前没有打开的窗口"
+        lines = [f"当前打开的窗口 ({len(windows)}):", ""]
+        for i, w in enumerate(windows, 1):
+            lines.append(f"  {i}. {w}")
+        return "\n".join(lines)
+
+
+class ComputerGetScreenInfo(BaseTool):
+    """获取屏幕信息 — 查看屏幕状态。"""
+
+    name = "get_screen_info"
+    description = (
+        "获取当前屏幕信息：分辨率、活动窗口。\n"
+        "在执行其他操作前可以用来了解当前状态。"
+    )
+
+    async def run(self) -> str:
+        w, h = _BACKEND.get_screen_size()
+        active = _BACKEND.get_active_window()
+        return (
+            f"屏幕分辨率: {w}x{h}\n"
+            f"当前活动窗口: {active}\n"
+            f"操作系统: {CURRENT_OS.value}"
+        )
+
 
 class ComputerOpenFile(BaseTool):
-    """Open a file or URL with the default application."""
+    """打开文件 — 用默认程序打开文件或文件夹。"""
 
-    name = "computer_open"
+    name = "open_file"
     description = (
-        "Open a file or URL with the system's default application. "
-        "Can open files (PDFs, images, documents) and URLs (websites)."
+        "用系统默认程序打开文件或文件夹。\n"
+        "支持任何文件类型：PDF、图片、文档、文件夹等。"
     )
     schema = ToolSchema(
         properties={
-            "target": {
-                "type": "string",
-                "description": "File path or URL to open",
-            },
+            "path": {"type": "string", "description": "文件或文件夹路径"},
         },
-        required=["target"],
+        required=["path"],
     )
 
-    async def run(self, target: str) -> str:
-        success = _BACKEND.open_file(target)
+    async def run(self, path: str) -> str:
+        success = _BACKEND.open_file(path)
         if success:
-            return f"Opened: {target}"
-        return f"Failed to open: {target}"
+            return f"已打开: {path}"
+        return f"无法打开: {path}"
 
 
 class ComputerOpenTerminal(BaseTool):
-    """Open a terminal window."""
+    """打开终端 — 打开一个新的终端窗口。"""
 
-    name = "computer_terminal"
+    name = "open_terminal"
     description = (
-        "Open a terminal window. Optionally run a command in the new terminal. "
-        "On macOS opens Terminal.app, on Linux opens the default terminal emulator."
+        "打开一个新的终端/命令行窗口。\n"
+        "可选传入一个命令，在新终端中执行。"
     )
     schema = ToolSchema(
         properties={
-            "command": {
-                "type": "string",
-                "description": "Optional command to run in the terminal",
-            },
+            "command": {"type": "string", "description": "可选：要在新终端中执行的命令"},
         },
     )
 
     async def run(self, command: str = "") -> str:
         _BACKEND.open_terminal(command)
         if command:
-            return f"Opened terminal running: {command}"
-        return "Opened terminal"
-
-
-# ─── Run AppleScript (macOS only) ──────────────────────────
-
-class ComputerRunAppleScript(BaseTool):
-    """Run an AppleScript on macOS."""
-
-    name = "computer_applescript"
-    description = (
-        "Run an AppleScript on macOS. Only works on macOS. "
-        "Useful for deep macOS automation that the other tools don't cover."
-    )
-    schema = ToolSchema(
-        properties={
-            "script": {
-                "type": "string",
-                "description": "AppleScript code to execute. "
-                    'Example: tell application "Safari" to activate',
-            },
-        },
-        required=["script"],
-    )
-
-    async def run(self, script: str) -> str:
-        if CURRENT_OS != OS.MAC:
-            return "[AppleScript only works on macOS]"
-        try:
-            result = subprocess.run(
-                ["osascript", "-e", script],
-                capture_output=True, text=True, timeout=15,
-            )
-            if result.stdout.strip():
-                return result.stdout.strip()
-            if result.returncode != 0:
-                return f"[AppleScript error: {result.stderr.strip()}]"
-            return "[AppleScript executed successfully]"
-        except Exception as exc:
-            return f"[AppleScript error: {exc}]"
-
-
-# ─── Run Shell Command (Linux/macOS) ───────────────────────
-
-class ComputerRunShell(BaseTool):
-    """Run a shell command on the local machine."""
-
-    name = "computer_shell"
-    description = (
-        "Run a shell command on the local machine. "
-        "Works on macOS and Linux. "
-        "Useful for system operations, running scripts, checking system state. "
-        "WARNING: This executes real commands — use with caution."
-    )
-    schema = ToolSchema(
-        properties={
-            "command": {
-                "type": "string",
-                "description": "Shell command to execute",
-            },
-            "timeout": {
-                "type": "integer",
-                "description": "Timeout in seconds (default: 10, max: 60)",
-            },
-        },
-        required=["command"],
-    )
-
-    async def run(self, command: str, timeout: int = 10) -> str:
-        if CURRENT_OS == OS.WINDOWS:
-            return "[Shell commands not yet supported on Windows]"
-
-        timeout = max(1, min(60, timeout))
-        try:
-            result = subprocess.run(
-                ["bash", "-c", command],
-                capture_output=True, text=True, timeout=timeout,
-            )
-            output = result.stdout.strip()
-            error = result.stderr.strip()
-
-            parts = []
-            if output:
-                parts.append(f"Output:\n{output[:2000]}")
-            if error:
-                parts.append(f"Error:\n{error[:1000]}")
-
-            return "\n".join(parts) if parts else "[Command completed with no output]"
-
-        except subprocess.TimeoutExpired:
-            return f"[Command timed out after {timeout}s]"
-        except Exception as exc:
-            return f"[Shell error: {exc}]"
+            return f"已打开终端并执行: {command}"
+        return "已打开终端"

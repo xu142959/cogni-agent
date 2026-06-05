@@ -1,4 +1,4 @@
-"""Tests for computer control tools — cross-platform."""
+"""Tests for computer control tools — 像人类一样操作电脑。"""
 
 import platform
 import pytest
@@ -6,19 +6,16 @@ import pytest
 from cogni_agent.tools.computer import (
     CURRENT_OS,
     OS,
-    ComputerScreenshot,
-    ComputerScreenInfo,
+    ComputerGetScreenInfo,
     ComputerListWindows,
-    ComputerMouseMove,
-    ComputerMouseClick,
     ComputerType,
     ComputerHotkey,
-    ComputerPress,
-    ComputerFocusWindow,
+    ComputerPressKey,
+    ComputerSwitchWindow,
     ComputerOpenFile,
     ComputerOpenTerminal,
-    ComputerRunAppleScript,
     ComputerRunShell,
+    ComputerOpenProgram,
 )
 
 
@@ -38,66 +35,71 @@ class TestPlatformDetection:
 
 class TestScreenInfo:
     @pytest.mark.asyncio
-    async def test_screen_info(self):
-        tool = ComputerScreenInfo()
+    async def test_get_screen_info(self):
+        tool = ComputerGetScreenInfo()
         result = await tool.run()
-        assert "Screen:" in result
-        assert "Mouse:" in result
-        assert CURRENT_OS.value in result
+        assert "屏幕分辨率" in result
+        assert "当前活动窗口" in result
 
 
-class TestScreenshot:
+class TestPressKey:
     @pytest.mark.asyncio
-    async def test_screenshot(self):
-        tool = ComputerScreenshot()
-        result = await tool.run()
-        assert "Screenshot" in result or "failed" in result
+    async def test_press_key(self):
+        tool = ComputerPressKey()
+        result = await tool.run(key="enter")
+        assert "enter" in result
 
+    @pytest.mark.asyncio
+    async def test_press_key_multiple_times(self):
+        tool = ComputerPressKey()
+        result = await tool.run(key="tab", times=3)
+        assert "3 次" in result
 
-class TestMouseMove:
     @pytest.mark.asyncio
     async def test_schema(self):
-        tool = ComputerMouseMove()
+        tool = ComputerPressKey()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_mouse_move"
-        assert "x" in ot["function"]["parameters"]["required"]
-        assert "y" in ot["function"]["parameters"]["required"]
-
-
-class TestMouseClick:
-    @pytest.mark.asyncio
-    async def test_schema(self):
-        tool = ComputerMouseClick()
-        ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_mouse_click"
-        assert "button" in ot["function"]["parameters"]["properties"]
+        assert ot["function"]["name"] == "press_key"
+        assert "key" in ot["function"]["parameters"]["required"]
 
 
 class TestType:
     @pytest.mark.asyncio
+    async def test_type_text(self):
+        tool = ComputerType()
+        result = await tool.run(text="hello")
+        assert "5 个字符" in result
+
+    @pytest.mark.asyncio
     async def test_schema(self):
         tool = ComputerType()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_type"
+        assert ot["function"]["name"] == "type_text"
         assert "text" in ot["function"]["parameters"]["required"]
 
 
 class TestHotkey:
     @pytest.mark.asyncio
+    async def test_hotkey(self):
+        tool = ComputerHotkey()
+        result = await tool.run(keys=["ctrl", "c"])
+        assert "ctrl+c" in result
+
+    @pytest.mark.asyncio
     async def test_schema(self):
         tool = ComputerHotkey()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_hotkey"
+        assert ot["function"]["name"] == "press_hotkey"
         assert "keys" in ot["function"]["parameters"]["required"]
 
 
-class TestPress:
+class TestOpenProgram:
     @pytest.mark.asyncio
     async def test_schema(self):
-        tool = ComputerPress()
+        tool = ComputerOpenProgram()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_press"
-        assert "key" in ot["function"]["parameters"]["required"]
+        assert ot["function"]["name"] == "open_program"
+        assert "name" in ot["function"]["parameters"]["required"]
 
 
 class TestListWindows:
@@ -105,17 +107,17 @@ class TestListWindows:
     async def test_list_windows(self):
         tool = ComputerListWindows()
         result = await tool.run()
-        # Should return either a list or a "not supported" message
         assert isinstance(result, str)
         assert len(result) > 0
 
 
-class TestFocusWindow:
+class TestSwitchWindow:
     @pytest.mark.asyncio
     async def test_schema(self):
-        tool = ComputerFocusWindow()
+        tool = ComputerSwitchWindow()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_focus_window"
+        assert ot["function"]["name"] == "switch_window"
+        assert "title" in ot["function"]["parameters"]["required"]
 
 
 class TestOpenFile:
@@ -123,19 +125,8 @@ class TestOpenFile:
     async def test_schema(self):
         tool = ComputerOpenFile()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_open"
-        assert "target" in ot["function"]["parameters"]["required"]
-
-
-class TestAppleScript:
-    @pytest.mark.asyncio
-    async def test_mac_only(self):
-        tool = ComputerRunAppleScript()
-        result = await tool.run(script="return \"hello\"")
-        if CURRENT_OS == OS.MAC:
-            assert "hello" in result.lower() or "executed" in result.lower()
-        else:
-            assert "only works on macOS" in result
+        assert ot["function"]["name"] == "open_file"
+        assert "path" in ot["function"]["parameters"]["required"]
 
 
 class TestRunShell:
@@ -145,25 +136,26 @@ class TestRunShell:
         result = await tool.run(command="echo hello", timeout=5)
         if CURRENT_OS in (OS.MAC, OS.LINUX):
             assert "hello" in result or "Output" in result
-        else:
-            # Windows not supported
-            assert result is not None
 
     @pytest.mark.asyncio
     async def test_schema(self):
         tool = ComputerRunShell()
         ot = tool.to_openai_tool()
-        assert ot["function"]["name"] == "computer_shell"
+        assert ot["function"]["name"] == "run_command"
 
 
 class TestToolDefinitions:
-    def test_all_tool_names(self):
+    def test_computer_tool_names(self):
         from cogni_agent.tools import all_tools
         tools = all_tools()
-        computer_tools = [t for t in tools if t.name.startswith("computer_")]
-        assert len(computer_tools) >= 10
-        names = {t.name for t in computer_tools}
-        assert "computer_screenshot" in names
-        assert "computer_mouse_move" in names
-        assert "computer_type" in names
-        assert "computer_shell" in names
+        computer_names = {t.name for t in tools}
+        assert "press_key" in computer_names
+        assert "type_text" in computer_names
+        assert "press_hotkey" in computer_names
+        assert "open_program" in computer_names
+        assert "run_command" in computer_names
+        assert "switch_window" in computer_names
+        assert "list_windows" in computer_names
+        assert "get_screen_info" in computer_names
+        assert "open_file" in computer_names
+        assert "open_terminal" in computer_names

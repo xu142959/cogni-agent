@@ -26,6 +26,8 @@ src/cogni_agent/llm/gateway.py
 src/cogni_agent/memory/__init__.py
 src/cogni_agent/memory/manager.py
 src/cogni_agent/memory/stores.py
+src/cogni_agent/multi_agent/__init__.py
+src/cogni_agent/multi_agent/team.py
 src/cogni_agent/reasoning/__init__.py
 src/cogni_agent/reasoning/react.py
 src/cogni_agent/tools/__init__.py
@@ -39,6 +41,7 @@ tests/test_identity.py
 tests/test_imports.py
 tests/test_llm.py
 tests/test_memory.py
+tests/test_multi_agent.py
 tests/test_reasoner.py
 tests/test_tools.py
 tests/test_types.py

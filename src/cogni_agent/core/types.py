@@ -31,7 +31,7 @@ class IdentityProfile(BaseModel):
 
 # ─── Messages ──────────────────────────────────────────────────
 
-MessageRole = Literal["system", "user", "assistant", "tool"]
+MessageRole = Literal["system", "user", "assistant", "tool", "agent"]
 
 
 class Message(BaseModel):

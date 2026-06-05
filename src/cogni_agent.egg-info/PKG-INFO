@@ -55,67 +55,250 @@ Dynamic: license-file
 
 **A cognitive AI Agent framework — agents with self-awareness, memory, and evolution.**
 
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](pyproject.toml)
+[![Tests](https://img.shields.io/badge/tests-103%20passed-brightgreen.svg)](#)
+
+```python
+from cogni_agent import AgentRuntime
+from cogni_agent.tools import WebSearch, Calculator, ComputerScreenshot
+
+# 创建带自我认知的 Agent
+agent = await AgentRuntime.create(
+    name="小悟",
+    role="数据分析师",
+    personality=["严谨", "友善"],
+    tools=[WebSearch(), Calculator(), ComputerScreenshot()],
+)
+
+# 分配任务 — Agent 会自主推理、调用工具、反思进化
+result = await agent.run("搜索最近的 AI 新闻趋势")
+```
+
+---
+
+## 🌟 核心理念
+
+大多数 Agent 框架是**流程编排器**（定义 DAG、串接工具）。CogniAgent 完全不同：
+
+| 维度 | 竞品 | **CogniAgent** |
+|---|---|---|
+| 🧠 **核心** | 流程编排 (DAG/Pipeline) | **认知引擎 (Brain)** |
+| 👤 **自我认知** | ❌ 无 | ✅ **Identity Profile / Capability Map / 关系模型** |
+| 🔄 **自动进化** | ❌ 每次从零开始 | ✅ **反思→学习→适应→巩固 进化飞轮** |
+| 💾 **记忆系统** | 单层对话历史 | ✅ **工作/语义/情景/程序 四层架构** |
+| 🔧 **工具调用** | 固定流程节点 | ✅ **21个工具，Agent 自主决策** |
+| 🤖 **电脑控制** | ❌ 仅特定产品 | ✅ **截图/鼠标/键盘/窗口/Shell 跨平台** |
+| 🌐 **依赖** | 必须 API Key | ✅ **DuckDuckGo 搜索 + 本地嵌入 零 Key 可用** |
+
+---
+
+## 📦 安装
+
+```bash
+pip install cogni-agent
+
+# 或从源码安装
+git clone https://github.com/cogni-agent/cogni-agent
+cd cogni-agent
+pip install -e .
+```
+
+### 可选依赖
+
+```bash
+pip install 'cogni-agent[web]'   # Web Console 可视化调试台
+pip install 'cogni-agent[gui]'   # 鼠标/键盘图形化控制
+pip install 'cogni-agent[all]'   # 全部功能
+```
+
+---
+
+## 🚀 快速开始
+
+### 1. 创建 Agent
+
 ```python
 from cogni_agent import AgentRuntime
 
 agent = await AgentRuntime.create(
     name="小悟",
     role="数据分析助手",
-    personality=["严谨", "友善"],
+    personality=["严谨", "友善", "善于洞察"],
+    values=["数据驱动决策"],
     model="gpt-4o",
 )
+```
 
-result = await agent.run("分析这份销售数据的趋势")
+### 2. 分配任务
+
+```python
+result = await agent.run("帮我分析一下当前 AI Agent 框架的市场格局")
 print(result)
 ```
 
-## Philosophy
+### 3. 查看自我认知
 
-Most agent frameworks are **workflow orchestrators** — they define DAGs, chain tool calls, and execute
-predefined pipelines. CogniAgent is different:
+```python
+# 能力置信度地图
+print(agent.get_capability_map())
+# → [{"name": "chat", "confidence": 0.7}, ...]
 
-- 🧠 **Cognitive Engine first** — built-in reasoning, planning, and reflection
-- 👤 **Self-identity** — agents know who they are (name, role, personality, values)
-- 🔄 **Auto-evolution** — agents learn from experience and grow over time
-- 💾 **Structured memory** — working, semantic, episodic, and procedural memory layers
+# 进化历史
+print(agent.get_evolution_history())
+# → [{"type": "insight", "description": "..."}, ...]
 
-## Quick Start
-
-```bash
-pip install cogni-agent
+# 完整自我认知报告
+print(agent.get_self_summary())
 ```
+
+---
+
+## 🛠️ 21 个内置工具
+
+| 类别 | 工具 | 平台 | 需 API Key |
+|---|---|---|---|
+| **Web** | `web_search` | 🍎🐧 | ❌ |
+| **Web** | `web_fetch` | 🍎🐧 | ❌ |
+| **文件** | `file_read` / `file_write` / `file_list` | 🍎🐧 | ❌ |
+| **计算** | `calculator` | 🍎🐧 | ❌ |
+| **编程** | `python_repl` (沙箱) | 🍎🐧 | ❌ |
+| **电脑** | `computer_screenshot` | 🍎🐧 | ❌ |
+| **电脑** | `computer_mouse_move` / `computer_mouse_click` / `computer_mouse_scroll` | 🍎🐧 | ❌ |
+| **电脑** | `computer_type` / `computer_hotkey` / `computer_press` | 🍎🐧 | ❌ |
+| **电脑** | `computer_screen_info` / `computer_list_windows` / `computer_focus_window` | 🍎🐧 | ❌ |
+| **电脑** | `computer_open` / `computer_terminal` | 🍎🐧 | ❌ |
+| **脚本** | `computer_shell` (bash) | 🍎🐧 | ❌ |
+| **脚本** | `computer_applescript` | 🍎 | ❌ |
 
 ```python
 from cogni_agent import AgentRuntime
+from cogni_agent.tools import WebSearch, Calculator, PythonREPL, ComputerScreenshot
 
-# Create an agent with identity
 agent = await AgentRuntime.create(
-    name="Alex",
-    role="research assistant",
-    personality=["thorough", "curious"],
+    name="全能助手",
+    tools=[WebSearch(), Calculator(), PythonREPL(), ComputerScreenshot()],
 )
-
-# Run a task
-response = await agent.run("Summarize the latest AI research papers")
-print(response)
 ```
 
-## Features
+---
 
-- **Multi-model LLM Gateway** — 100+ models via litellm
-- **ReAct & Plan-and-Execute** reasoning engines
-- **Identity Profile** system for agent self-awareness
-- **Semantic memory** with vector storage (ChromaDB)
-- **Working memory** with token-aware context management
-- **Tool system** with MCP and function calling support
-- **Structured logging** via structlog + OpenTelemetry
+## 🧠 体系架构
 
-## Status
+```
+┌──────────────────────────────────────────────────────────────┐
+│                   应用层 (Application Layer)                  │
+│  CLI  │  Web Console  │  API Server  │  Agent Lab            │
+└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│                   能力层 (Capability Layer)                   │
+│  工具系统(21)  │  MCP协议  │  安全沙箱  │  可观测性           │
+└──────────────────────────────────────────────────────────────┘
+┌─────────────── 认知引擎层 (Cognitive Engine) ───────────────┐
+│                                                              │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │  推理引擎 (Reasoning Engine)                       │      │
+│  │  ReAct / Plan-and-Execute / 决策引擎 / 元认知监控  │      │
+│  └────────────────────────────────────────────────────┘      │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │  自我认知系统 (Self-Cognition)  ⭐                  │      │
+│  │  Identity Profile / Capability Map / 关系模型      │      │
+│  └────────────────────────────────────────────────────┘      │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │  记忆系统 (Memory System)                          │      │
+│  │  工作记忆 / 情景记忆 / 语义记忆 / 程序记忆        │      │
+│  │  ChromaDB 向量检索 / LLM 经验萃取                  │      │
+│  └────────────────────────────────────────────────────┘      │
+│  ┌────────────────────────────────────────────────────┐      │
+│  │  进化引擎 (Evolution Engine)  ⭐                   │      │
+│  │  反思→学习→适应→巩固  完整的进化飞轮             │      │
+│  └────────────────────────────────────────────────────┘      │
+└──────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────┐
+│               基础设施层 (Infrastructure Layer)               │
+│  LLM 网关(litellm)  │  向量数据库  │  API Key 管理          │
+│  100+ 模型支持        │  ChromaDB    │  Docker 部署           │
+└──────────────────────────────────────────────────────────────┘
+```
 
-🚧 Alpha — under active development.
+---
 
-Phase 1 delivers: LLM Gateway → Reasoning Engine → Identity Profile → Memory System
+## 🔬 Agent Lab — 可视化实验室
 
-## License
+直观展示认知引擎、自我认知和进化过程的 Web 应用。
 
-MIT
+```bash
+pip install 'cogni-agent[web]'
+python -m cogni_agent web
+# → http://localhost:8080
+```
+
+功能面板：
+- **💬 聊天** — 对话 + 思维链可视化（Thought→Action→Observation）
+- **👤 Self** — Identity Profile / Capability Map 实时变化
+- **💾 Memory** — 工作记忆 / 语义记忆搜索
+- **🔄 Evolution** — 进化时间线，每次交互后自动累积
+
+---
+
+## 🐳 Docker 部署
+
+```bash
+docker build -t cogni-agent:latest .
+docker run -it --rm -e OPENAI_API_KEY=$KEY cogni-agent:latest
+
+# 或完整环境
+docker-compose up -d
+```
+
+---
+
+## 📊 项目状态
+
+| 指标 | 数值 |
+|---|---|
+| 核心代码 | ~3500 行 |
+| 测试用例 | **103 个** |
+| 测试通过率 | **100%** |
+| 内置工具 | **21 个** |
+| 覆盖平台 | macOS / Linux (Windows 占位) |
+| 许可证 | MIT |
+
+---
+
+## 📄 文档
+
+- [竞品分析](memory/competitive-analysis.md) — 7 大框架对比
+- [设计理念](memory/agent-design-philosophy.md) — 核心理念沉淀
+- [PRD](https://github.com/cogni-agent/cogni-agent) — 完整产品需求文档
+- [架构图](https://github.com/cogni-agent/cogni-agent) — 四层 Mermaid 架构图
+
+---
+
+## 📋 路线图
+
+| 阶段 | 功能 | 状态 |
+|---|---|---|
+| **Phase 1** | 认知引擎 + LLM 网关 + 基础类型 | ✅ |
+| **Phase 2** | ReAct 推理引擎 + 真实工具循环 | ✅ |
+| **Phase 3** | Identity Profile + 自我认知系统 | ✅ |
+| **Phase 4** | 记忆系统 (ChromaDB + 嵌入) | ✅ |
+| **Phase 5** | 工具生态 (21 个内置工具 + 电脑控制) | ✅ |
+| **Phase 6** | 进化引擎 (反思→学习→适应→巩固) | ✅ |
+| **Phase 7** | Agent Lab 可视化实验室 | ✅ |
+| **Phase 8** | Docker / CI / PyPI 发布就绪 | ✅ |
+| **—** | **Windows 电脑控制** | 📌 |
+| **—** | **多 Agent 涌现协作** | 📌 |
+| **—** | **工具市场** | 📌 |
+
+---
+
+## 📝 License
+
+MIT © 2026 CogniAgent Team
+
+---
+
+<p align="center">
+  <b>不只是 Agent 框架，而是一个会成长的 AI 生命体孵化器。</b>
+</p>

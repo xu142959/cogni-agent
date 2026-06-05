@@ -12,78 +12,64 @@ from cogni_agent.tools.builtin import (
     WebSearch,
 )
 from cogni_agent.tools.computer import (
-    ComputerFocusWindow,
+    ComputerGetScreenInfo,
     ComputerHotkey,
     ComputerListWindows,
-    ComputerMouseClick,
-    ComputerMouseMove,
-    ComputerMouseScroll,
     ComputerOpenFile,
+    ComputerOpenProgram,
     ComputerOpenTerminal,
-    ComputerPress,
-    ComputerRunAppleScript,
+    ComputerPressKey,
     ComputerRunShell,
-    ComputerScreenInfo,
-    ComputerScreenshot,
+    ComputerSwitchWindow,
     ComputerType,
 )
+from cogni_agent.tools.mcp import MCPBuiltinServer, MCPToolset, MCPToolWrapper
+from cogni_agent.voice import VoiceInputTool, VoiceOutputTool
+from cogni_agent.vision import ScreenLookTool, ScreenReadTool, ScreenFindTool, ScreenListElementsTool
 
 __all__ = [
     "BaseTool",
     "ToolRegistry",
     "ToolSchema",
-    # Web tools
-    "WebSearch",
-    "WebFetch",
-    # File tools
-    "FileRead",
-    "FileWrite",
-    "FileList",
-    # Computation
-    "Calculator",
-    "PythonREPL",
-    # Computer control
-    "ComputerScreenshot",
-    "ComputerMouseMove",
-    "ComputerMouseClick",
-    "ComputerMouseScroll",
+    "WebSearch", "WebFetch",
+    "FileRead", "FileWrite", "FileList",
+    "Calculator", "PythonREPL",
+    # Computer control (新：像人类一样操作)
+    "ComputerPressKey",
     "ComputerType",
     "ComputerHotkey",
-    "ComputerPress",
-    "ComputerScreenInfo",
+    "ComputerOpenProgram",
+    "ComputerRunShell",
+    "ComputerSwitchWindow",
     "ComputerListWindows",
-    "ComputerFocusWindow",
+    "ComputerGetScreenInfo",
     "ComputerOpenFile",
     "ComputerOpenTerminal",
-    "ComputerRunAppleScript",
-    "ComputerRunShell",
+    # Voice
+    "VoiceInputTool",
+    "VoiceOutputTool",
+    # Vision
+    "ScreenLookTool", "ScreenReadTool", "ScreenFindTool", "ScreenListElementsTool",
+    # MCP
+    "MCPToolset", "MCPToolWrapper", "MCPBuiltinServer",
     # Testing
     "Echo",
 ]
 
 
 def all_tools() -> list[BaseTool]:
-    """Return one instance of each built-in tool (for convenience)."""
+    """Return one instance of each built-in tool."""
     return [
-        WebSearch(),
-        WebFetch(),
-        FileRead(),
-        FileWrite(),
-        FileList(),
-        Calculator(),
-        PythonREPL(),
-        ComputerScreenshot(),
-        ComputerMouseMove(),
-        ComputerMouseClick(),
-        ComputerMouseScroll(),
-        ComputerType(),
-        ComputerHotkey(),
-        ComputerPress(),
-        ComputerScreenInfo(),
-        ComputerListWindows(),
-        ComputerFocusWindow(),
-        ComputerOpenFile(),
-        ComputerOpenTerminal(),
-        ComputerRunAppleScript(),
-        ComputerRunShell(),
+        WebSearch(), WebFetch(),
+        FileRead(), FileWrite(), FileList(),
+        Calculator(), PythonREPL(),
+        # 电脑控制 — 像人类一样
+        ComputerPressKey(), ComputerType(), ComputerHotkey(),
+        ComputerOpenProgram(), ComputerRunShell(),
+        ComputerSwitchWindow(), ComputerListWindows(),
+        ComputerGetScreenInfo(), ComputerOpenFile(), ComputerOpenTerminal(),
+        # 语音
+        VoiceInputTool(), VoiceOutputTool(),
+        # 视觉
+        ScreenLookTool(), ScreenReadTool(), ScreenFindTool(), ScreenListElementsTool(),
     ]
