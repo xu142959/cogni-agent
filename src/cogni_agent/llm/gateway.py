@@ -14,6 +14,12 @@ from cogni_agent.core.errors import LLMError
 from cogni_agent.core.interfaces import LLMGateway as BaseLLMGateway
 from cogni_agent.core.types import LLMConfig, LLMResponse, LLMToolCall, Message
 
+# ─── 启动时清理代理环境变量 ─────────────────────────────
+# 解决 socks5 代理导致 httpx 崩溃的问题
+for _key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
+             "ALL_PROXY", "all_proxy", "socks_proxy", "SOCKS_PROXY"]:
+    os.environ.pop(_key, None)
+
 
 class LiteLLMGateway(BaseLLMGateway):
     """LLM gateway implementation.
@@ -36,8 +42,18 @@ class LiteLLMGateway(BaseLLMGateway):
         cfg = config_override or self.config
 
         # Resolve API key: explicit > env var > litellm default
-        api_key = cfg.api_key or os.getenv(self._env_key_for_model(cfg.model))
-        api_base = cfg.api_base or os.getenv(self._env_base_for_model(cfg.model))
+        api_key = cfg.api_key
+        if not api_key:
+            env_key = self._env_key_for_model(cfg.model)
+            if env_key:
+                api_key = os.environ.get(env_key)
+
+        api_base = cfg.api_base or os.environ.get("OPENAI_API_BASE") or None
+
+        # Clean any problematic proxy env vars that break httpx
+        for key in ["HTTP_PROXY", "HTTPS_PROXY", "http_proxy", "https_proxy",
+                     "ALL_PROXY", "all_proxy", "SOCKS_PROXY", "socks_proxy"]:
+            os.environ.pop(key, None)
 
         # If custom API base is set, use OpenAI client directly
         # (handles NVIDIA, vLLM, Ollama, etc.)

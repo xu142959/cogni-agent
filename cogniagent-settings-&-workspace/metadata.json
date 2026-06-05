@@ -1,0 +1,6 @@
+{
+  "name": "CogniAgent Settings & Workspace",
+  "description": "An immersive, high-fidelity AI Command Center settings pane and interactive chat interface built matching the CogniAgent prototype and design systems.",
+  "requestFramePermissions": ["microphone"],
+  "majorCapabilities": ["MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"]
+}

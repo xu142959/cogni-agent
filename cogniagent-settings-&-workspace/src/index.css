@@ -1,0 +1,114 @@
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500&family=Geist:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Geist", "Inter", ui-sans-serif, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", monospace;
+  --font-headline: "Space Grotesk", sans-serif;
+
+  /* Color variables mapped from Clean Minimalism Design System specification */
+  --color-surface-container-lowest: #F8F9FA;
+  --color-tertiary-container: #E5E7EB;
+  --color-on-tertiary-fixed: #111827;
+  --color-on-tertiary-container: #1F2937;
+  --color-inverse-surface: #111827;
+  --color-surface-tint: #000000;
+  --color-secondary-fixed-dim: #374151;
+  --color-primary-container: #000000;
+  --color-on-primary-container: #FFFFFF;
+  --color-tertiary-fixed: #E5E7EB;
+  --color-primary-fixed-dim: #1F2937;
+  --color-tertiary-fixed-dim: #D1D5DB;
+  --color-on-tertiary-fixed-variant: #4B5563;
+  --color-inverse-on-surface: #F9FAFB;
+  --color-error: #EF4444;
+  --color-surface-dim: #F3F4F6;
+  --color-on-primary: #FFFFFF;
+  --color-error-container: #FEE2E2;
+  --color-on-surface: #111827;
+  --color-tertiary: #111827;
+  --color-surface-bright: #FFFFFF;
+  --color-on-background: #111827;
+  --color-on-tertiary: #FFFFFF;
+  --color-surface-container-highest: #E5E7EB;
+  --color-surface-container-low: #FFFFFF;
+  --color-secondary: #4B5563;
+  --color-surface-container-high: #F3F4F6;
+  --color-on-primary-fixed-variant: #374151;
+  --color-on-primary-fixed: #000000;
+  --color-on-secondary-container: #1F2937;
+  --color-on-secondary: #FFFFFF;
+  --color-inverse-primary: #FFFFFF;
+  --color-surface: #FFFFFF;
+  --color-outline-variant: #E5E7EB;
+  --color-primary-fixed: #F3F4F6;
+  --color-on-secondary-fixed: #111827;
+  --color-background: #F8F9FA;
+  --color-on-error-container: #991B1B;
+  --color-surface-container: #FFFFFF;
+  --color-surface-variant: #F9FAFB;
+  --color-outline: #9CA3AF;
+  --color-secondary-container: #F3F4F6;
+  --color-on-error: #FFFFFF;
+  --color-secondary-fixed: #F3F4F6;
+  --color-primary: #000000;
+  --color-on-surface-variant: #4B5563;
+  --color-on-secondary-fixed-variant: #4B5563;
+}
+
+/* Glassmorphism styling optimized for clean minimalism light theme */
+.glass-panel {
+  background: rgba(255, 255, 255, 0.7);
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border: 1px solid rgba(0, 0, 0, 0.08);
+}
+
+.glow-bg {
+  background: radial-gradient(circle at center, rgba(0, 0, 0, 0.02) 0%, transparent 70%);
+}
+
+.mic-pulse {
+  animation: pulse-shadow 2.5s infinite;
+}
+
+@keyframes pulse-shadow {
+  0% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0.15); }
+  72% { box-shadow: 0 0 0 20px rgba(0, 0, 0, 0); }
+  100% { box-shadow: 0 0 0 0 rgba(0, 0, 0, 0); }
+}
+
+.ripple {
+  animation: ripple-anim 2s infinite ease-out;
+}
+.ripple-2 {
+  animation: ripple-anim 2s infinite ease-out;
+  animation-delay: 0.5s;
+}
+.ripple-3 {
+  animation: ripple-anim 2s infinite ease-out;
+  animation-delay: 1s;
+}
+
+@keyframes ripple-anim {
+  0% { transform: scale(1); opacity: 0.4; }
+  100% { transform: scale(2.6); opacity: 0; }
+}
+
+/* Custom Scrollbars optimized for light minimal aesthetics */
+.custom-scrollbar::-webkit-scrollbar {
+  width: 5px;
+  height: 5px;
+}
+.custom-scrollbar::-webkit-scrollbar-track {
+  background: transparent;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb {
+  background: #E5E7EB;
+  border-radius: 999px;
+}
+.custom-scrollbar::-webkit-scrollbar-thumb:hover {
+  background: #D1D5DB;
+}
+
